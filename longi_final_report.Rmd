@@ -5,8 +5,35 @@ date: "12/3/2018"
 output: pdf_document
 ---
 
+#Final Project: Smoking in the Framingham Heart Study
+
+*Target question: *
+1)Is there a relationship between age and smoking status?  Does this relationship differ by sex? 
+
+(2)Is there a relationship between the number of cigarettes smoked per day and age?  Does this relationship differ by sex? 
+
+
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = FALSE)
-frmgham = read.csv2("frmgham2.csv", sep=",")
+library(tidyverse)
+library(janitor)
+library(ggplot2)
+frmgham = read.csv2("frmgham2.csv", sep=",") %>% clean_names() %>% select(cursmoke, everything())
+
+```
+
+#missing values
+```{r}
+frmgham %>% 
+  group_by(period) %>% 
+  summarize(sum_na_period = sum(is.na(period)))
+
+d1 =frmgham %>% 
+  group_by(randid) %>% 
+  summarize(n=n())
+table(d1$n)
+#  447 patients have only one obs
+#781 patients have only two obs
+#3206 patients have all three obs
 ```
 
