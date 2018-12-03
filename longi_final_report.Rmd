@@ -7,11 +7,11 @@ output: pdf_document
 
 #Final Project: Smoking in the Framingham Heart Study
 
-*Target question: *
+##1. Target question:
 1)Is there a relationship between age and smoking status?  Does this relationship differ by sex? 
 
 (2)Is there a relationship between the number of cigarettes smoked per day and age?  Does this relationship differ by sex? 
-
+While answering these questions, please account for any confounders that you have evidence may impact the relationship between age and sex with smoking.
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = FALSE)
@@ -32,8 +32,32 @@ d1 =frmgham %>%
   group_by(randid) %>% 
   summarize(n=n())
 table(d1$n)
-#  447 patients have only one obs
+# 447 patients have only one obs
 #781 patients have only two obs
 #3206 patients have all three obs
+
+number.subjects <- frmgham  %>% 
+  select(randid) %>% 
+  distinct() %>% 
+  unlist() %>%
+  length()
+number.subjects
 ```
 
+* there are 447 patients who have only one obs; there are 781 patients who have only two obs and 3206 patients have all three obs. In total, there are 4434 patients in the study.
+
+
+
+
+#2.Target question:
+
+Next you are interested in the relationship between certain health outcomes and smoking status.  In particular you are interested in :
+
+
+(1)The relationship between current smoking status and systolic blood pressure.
+
+
+(2)The relationship between current smoking status and diastolic blood pressure.
+
+
+(3)The relationship between current smoking status and serum total cholesterol.   Again, while answering these questions, please account for any confounders that you have evidence may impact these relationships. 
