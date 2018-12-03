@@ -1,0 +1,12 @@
+---
+title: "logitudinal_final_proj"
+author: "Lynette Pan"
+date: "12/3/2018"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+frmgham = read.csv2("frmgham2.csv", sep=",")
+```
+
