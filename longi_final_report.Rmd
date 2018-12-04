@@ -7,11 +7,6 @@ output: pdf_document
 
 #Final Project: Smoking in the Framingham Heart Study
 
-##1. Target question:
-1)Is there a relationship between age and smoking status?  Does this relationship differ by sex? 
-
-(2)Is there a relationship between the number of cigarettes smoked per day and age?  Does this relationship differ by sex? 
-While answering these questions, please account for any confounders that you have evidence may impact the relationship between age and sex with smoking.
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = FALSE)
@@ -46,6 +41,24 @@ number.subjects
 
 * there are 447 patients who have only one obs; there are 781 patients who have only two obs and 3206 patients have all three obs. In total, there are 4434 patients in the study.
 
+##1. Target question:
+1) Is there a relationship between age and smoking status?  Does this relationship differ by sex? 
+
+* In general, an increase in age seems to results in a decrease in current smoking status. However, the age where it has the highest probability of being a smoker is around 40.
+
+
+
+```{r}
+frmgham %>% 
+  ggplot(., aes(x=age, y=cursmoke)) +
+    geom_jitter() + 
+    geom_smooth(method = "loess") 
+```
+
+
+
+(2)Is there a relationship between the number of cigarettes smoked per day and age?  Does this relationship differ by sex? 
+While answering these questions, please account for any confounders that you have evidence may impact the relationship between age and sex with smoking.
 
 
 
