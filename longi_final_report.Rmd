@@ -13,7 +13,8 @@ knitr::opts_chunk$set(echo = FALSE)
 library(tidyverse)
 library(janitor)
 library(ggplot2)
-frmgham = read.csv2("frmgham2.csv", sep=",") %>% clean_names() %>% select(cursmoke, everything())
+frmgham = read.csv2("frmgham2.csv", sep=",") %>% clean_names() %>% select(cursmoke, everything()) %>% 
+  mutate(sex=as.factor(sex))
 
 ```
 
@@ -52,9 +53,21 @@ number.subjects
 frmgham %>% 
   ggplot(., aes(x=age, y=cursmoke)) +
     geom_jitter() + 
-    geom_smooth(method = "loess") 
+    geom_smooth(method = "loess") +ggtitle("Unadjusted relationship between age and smoking status")
 ```
 
+
+```{r}
+frmgham %>% 
+  mutate(sex=ifelse(sex==1, "male","women")) %>% 
+  ggplot(., aes(x=age, y=cursmoke)) +
+    geom_jitter() + 
+    geom_smooth(method = "loess") +
+  facet_grid(~sex)+
+  ggtitle("Relationship between age and smoking status by gender")
+```
+
+* In general, an increase in age seems to results in a decrease in current smoking status for both gender group.
 
 
 (2)Is there a relationship between the number of cigarettes smoked per day and age?  Does this relationship differ by sex? 
