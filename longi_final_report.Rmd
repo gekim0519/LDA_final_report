@@ -70,8 +70,48 @@ frmgham %>%
 * In general, an increase in age seems to results in a decrease in current smoking status for both gender group.
 
 
-(2)Is there a relationship between the number of cigarettes smoked per day and age?  Does this relationship differ by sex? 
+(2) Is there a relationship between the number of cigarettes smoked per day and age?  Does this relationship differ by sex? 
+
 While answering these questions, please account for any confounders that you have evidence may impact the relationship between age and sex with smoking.
+
+```{r}
+frmgham %>% 
+  ggplot(., aes(x=age, y=cigpday)) +
+    geom_jitter() + 
+    geom_smooth(method = "loess") +
+  ggtitle("Unadjusted relationship between the number of cigarettes smoked per day and age")
+```
+```{r}
+confounder <- function(model) {
+      model.sum <- summary(model)
+      model.b <- model.sum$coefficients[2, 1]
+      oldmodel <- update(model, . ~ . -x)
+      oldmodel.sum <- summary(oldmodel)
+      oldmodel.b <- oldmodel.sum$coefficients[2, 1]
+      model.frame <- tidy(model.sum)
+      model.sub <- subset(model.frame, term = "x")
+      model.sub.b <- model.sub[, 5]
+      if ((model.b - oldmodel.b)/model.b >= .1 |
+           model.sub.b < .05)
+        return(model.sum)
+}
+
+    lapply(Covariates, function(x) {
+      confounder(glm(Outcome ~, family = binomial(link=logit)))
+    })
+```
+
+
+```{r}
+frmgham %>% 
+  mutate(sex=ifelse(sex==1, "male","women")) %>% 
+  ggplot(., aes(x=age, y=cigpday)) +
+  geom_jitter() + 
+  geom_smooth(method = "loess") +
+  facet_grid(~sex)+
+  ggtitle("Relationship between the number of cigarettes smoked per day and age by gender")
+```
+
 
 
 
