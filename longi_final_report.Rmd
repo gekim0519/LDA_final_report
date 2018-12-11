@@ -12,10 +12,20 @@ output: pdf_document
 knitr::opts_chunk$set(echo = FALSE)
 library(tidyverse)
 library(janitor)
-library(ggplot2)
-frmgham = read.csv2("frmgham2.csv", sep=",") %>% clean_names() %>% select(cursmoke, everything()) %>% 
-  mutate(sex=as.factor(sex))
-
+frmgham = 
+  read.csv2("frmgham2.csv", sep = ",") %>% 
+  clean_names() %>% select(cursmoke, everything()) %>% 
+  mutate(sex = as.factor(sex),
+         bpmeds = as.factor(bpmeds),
+         cursmoke = as.factor(cursmoke),
+         cigpday = as.factor(cigpday),
+         educ = as.factor(educ),
+         diabetes = as.factor(diabetes),
+         prevap = as.factor(prevap),
+         prevchd = as.factor(prevchd),
+         prevmi = as.factor(prevmi),
+         prevstrk = as.factor(prevstrk),
+         prevhyp = as.factor(prevhyp))
 ```
 
 #missing values
@@ -24,19 +34,21 @@ frmgham %>%
   group_by(period) %>% 
   summarize(sum_na_period = sum(is.na(period)))
 
-d1 =frmgham %>% 
+d1 = frmgham %>% 
   group_by(randid) %>% 
-  summarize(n=n())
+  summarize(n = n())
 table(d1$n)
 # 447 patients have only one obs
 #781 patients have only two obs
 #3206 patients have all three obs
 
-number.subjects <- frmgham  %>% 
+number.subjects <- 
+  frmgham  %>% 
   select(randid) %>% 
   distinct() %>% 
   unlist() %>%
   length()
+
 number.subjects
 ```
 
