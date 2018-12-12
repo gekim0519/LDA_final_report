@@ -13,6 +13,8 @@ knitr::opts_chunk$set(echo = FALSE)
 library(tidyverse)
 library(janitor)
 library(mice)
+library(gee)
+
 frmgham = 
   read.csv2("frmgham2.csv", sep = ",") %>% 
   clean_names() %>% select(cursmoke, everything()) %>% 
@@ -24,7 +26,9 @@ frmgham =
          prevchd = as.factor(prevchd),
          prevmi = as.factor(prevmi),
          prevstrk = as.factor(prevstrk),
-         prevhyp = as.factor(prevhyp)) %>% 
+         prevhyp = as.factor(prevhyp),
+         sysbp = as.numeric(levels(sysbp))[sysbp],
+         diabp = as.numeric(as.character(diabp))) %>% 
   as.tibble()
 
 ## created age category variable (age_ctg)
@@ -38,7 +42,37 @@ frmgham =
       age %in% 55:64 ~ "55-64",
       age %in% 65:74 ~ "65-74",
       age >= 75 ~ "75+"
-    )) 
+    ),
+    age_ctg = fct_relevel(age_ctg, "35-")) 
+
+## created sysbp category variable (sysbp_ctg)
+### According to the new guideline from american heart association
+### https://www.ahajournals.org/doi/10.1161/HYP.0000000000000065
+frmgham =
+  frmgham %>% 
+  mutate(
+      sysbp_ctg = case_when(
+      sysbp < 120 ~ "normal",  
+      (sysbp >= 120 & sysbp < 130) ~ "elevated",
+      (sysbp >= 130 & sysbp < 140) ~ "stage1",
+      (sysbp >= 140 & sysbp <= 180) ~ "stage2",
+      sysbp > 180 ~ "crisis"
+    ),
+    sysbp_ctg = fct_relevel(sysbp_ctg, "normal")) 
+
+## created sysbp category variable (diabp_ctg)
+### According to the new guideline from american heart association
+### https://www.ahajournals.org/doi/10.1161/HYP.0000000000000065
+frmgham =
+  frmgham %>% 
+  mutate(
+      diabp_ctg = case_when(
+      diabp < 80 ~ "normal and elevated",  
+      (diabp >= 80 & diabp < 90) ~ "stage1",
+      (diabp >= 90 & diabp <= 120 ) ~ "stage2",
+      diabp > 120 ~ "crisis"
+      ),
+    diabp_ctg = fct_relevel(diabp_ctg, "normal and elevated")) 
 ```
 
 
@@ -157,6 +191,34 @@ frmgham %>%
        y = "Probability of current smoking")
 ```
 
+## Finding confounders
+```{r}
+sex_age <- 
+  gee(cursmoke ~ sex + age, 
+      data = frmgham, 
+      id = randid, 
+      family = binomial,
+      corstr = ("unstructured"))
+
+sex_age_sysbp <- 
+  gee(cursmoke ~ sex + age + sysbp_ctg, 
+      data = frmgham, 
+      id = randid, 
+      family = binomial,
+      corstr = ("unstructured"))
+
+CI_sex_age =
+  tibble(
+    OR =
+      exp(coef(summary(sex_age))[,1]),
+    lower_CI  = 
+      exp(coef(summary(sex_age))[,1] - 1.96*(coef(summary(sex_age))[,4])),
+    upper_CI = 
+      exp(coef(summary(sex_age))[,1] + 1.96*(coef(summary(sex_age))[,4])),
+    sysbp_OR =
+      exp(coef(summary(sex_age_sysbp))[,1])
+  )
+```
 
 
 (2) Is there a relationship between the number of cigarettes smoked per day and age?  Does this relationship differ by sex? 
