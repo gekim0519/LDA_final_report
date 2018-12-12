@@ -265,33 +265,52 @@ Next you are interested in the relationship between certain health outcomes and 
 
 (2)The relationship between current smoking status and diastolic blood pressure.
 ```{r}
-sex_age <- 
+diabp <- 
   gee(cursmoke ~ diabp, 
       data = frmgham, 
       id = randid, 
       family = binomial,
       corstr = ("unstructured"))
-#confounders: sysbp, prevhyp, hyperten, timehyp
-sex_age_sysbp <- 
-  gee(cursmoke ~ diabp + timehyp, 
+
+diabp_sysbp <- 
+  gee(cursmoke ~ diabp + sysbp, 
       data = frmgham, 
       id = randid, 
       family = binomial,
       corstr = ("unstructured"))
 
+diabp_prevhyp <- 
+  gee(cursmoke ~ diabp + prevhyp, 
+      data = frmgham, 
+      id = randid, 
+      family = binomial,
+      corstr = ("unstructured"))
+
+diabp_hyperten <- 
+  gee(cursmoke ~ diabp + hyperten, 
+      data = frmgham, 
+      id = randid, 
+      family = binomial,
+      corstr = ("unstructured"))
+
+
 tibble(
-    variable = c("timehyp"),
+    variable = c("sysbp", "prevhyp", "hyperten"),
     OR = 
-      exp(coef(summary(sex_age))[2,1]),
+      exp(coef(summary(diabp))[2,1]),
     lower_CI  = 
-      exp(coef(summary(sex_age))[2,1] - 1.96*(coef(summary(sex_age))[2,4])),
+      exp(coef(summary(diabp))[2,1] - 1.96*(coef(summary(diabp))[2,4])),
     upper_CI = 
-      exp(coef(summary(sex_age))[2,1] + 1.96*(coef(summary(sex_age))[2,4])),
-    sysbp_OR =
-      exp(coef(summary(sex_age_sysbp))[2,1]),
+      exp(coef(summary(diabp))[2,1] + 1.96*(coef(summary(diabp))[2,4])),
+    conf_OR =
+      c(exp(coef(summary(diabp_sysbp))[2,1]),
+        exp(coef(summary(diabp_prevhyp))[2,1]),
+        exp(coef(summary(diabp_hyperten))[2,1])),
     confounder =
-      if_else((sysbp_OR >= lower_CI & sysbp_OR <= upper_CI), FALSE, TRUE)
+      if_else((conf_OR >= lower_CI & conf_OR <= upper_CI), FALSE, TRUE)
   )
+
+#confounders: sysbp, prevhyp, hyperten
 ```
 
 (3)The relationship between current smoking status and serum total cholesterol.   Again, while answering these questions, please account for any confounders that you have evidence may impact these relationships. 
