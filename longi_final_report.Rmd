@@ -1272,6 +1272,16 @@ tibble(
 #confounders: sysbp, prevhyp, hyperten
 ```
 
+
+
+
+
+
+----
+
+
+
+
 (3)The relationship between current smoking status and serum total cholesterol. Again, while answering these questions, please account for any confounders that you have evidence may impact these relationships. 
 
 
