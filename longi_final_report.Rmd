@@ -24,7 +24,8 @@ frmgham =
          prevchd = as.factor(prevchd),
          prevmi = as.factor(prevmi),
          prevstrk = as.factor(prevstrk),
-         prevhyp = as.factor(prevhyp))
+         prevhyp = as.factor(prevhyp)) %>% 
+  as.tibble()
 ```
 
 #missing values
@@ -79,6 +80,19 @@ frmgham %>%
 ```
 * In general, an increase in age seems to results in a decrease in current smoking status for both gender group.
 
+## created age category
+```{r}
+frmgham =
+  frmgham %>% 
+  mutate(
+      age_ctg = case_when(
+      age %in% 35:44 ~ "35-44",
+      age %in% 45:54 ~ "45-54",
+      age %in% 55:64 ~ "55-64",
+      age %in% 65:74 ~ "65-74",
+      age >= 75 ~ "75+"
+    )) 
+```
 
 
 
