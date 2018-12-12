@@ -32,6 +32,7 @@ frmgham =
   frmgham %>% 
   mutate(
       age_ctg = case_when(
+      age < 35 ~ "35-",  
       age %in% 35:44 ~ "35-44",
       age %in% 45:54 ~ "45-54",
       age %in% 55:64 ~ "55-64",
@@ -72,12 +73,25 @@ sort(sapply(frmgham, function(x) { sum(is.na(x)) }), decreasing=TRUE)
 
 # Impute missing values using MICE package
 ```{r}
-
-frmgham_temp <- mice(frmgham,m=1, method='cart', printFlag=FALSE,seed = 1)
-frmgham
-summary(frmgham_temp)
-frmgham_complete <- complete(frmgham_temp)
+load("frmgham_complete.RData")
+# frmgham_temp <- mice(frmgham,m=1, method='cart', printFlag=FALSE,seed = 1)
+# frmgham
+# summary(frmgham_temp)
+# frmgham_complete <- complete(frmgham_temp)
 #save(frmgham_complete, file = "frmgham_complete.RData")
+frmgham_complete =
+  frmgham_complete %>% 
+  mutate(
+      age_ctg = case_when(
+      age < 35 ~ "35-",  
+      age %in% 35:44 ~ "35-44",
+      age %in% 45:54 ~ "45-54",
+      age %in% 55:64 ~ "55-64",
+      age %in% 65:74 ~ "65-74",
+      age >= 75 ~ "75+"
+    )) 
+
+sort(sapply(frmgham_complete, function(x) { sum(is.na(x)) }), decreasing=TRUE)
 
 ```
 
