@@ -18,7 +18,6 @@ frmgham =
   mutate(sex = as.factor(sex),
          bpmeds = as.factor(bpmeds),
          cursmoke = as.factor(cursmoke),
-         cigpday = as.factor(cigpday),
          educ = as.factor(educ),
          diabetes = as.factor(diabetes),
          prevap = as.factor(prevap),
@@ -78,8 +77,11 @@ frmgham %>%
   facet_grid(~sex)+
   ggtitle("Relationship between age and smoking status by gender")
 ```
-
 * In general, an increase in age seems to results in a decrease in current smoking status for both gender group.
+
+
+
+
 
 
 (2) Is there a relationship between the number of cigarettes smoked per day and age?  Does this relationship differ by sex? 
@@ -93,6 +95,7 @@ frmgham %>%
     geom_smooth(method = "loess") +
   ggtitle("Unadjusted relationship between the number of cigarettes smoked per day and age")
 ```
+
 ```{r}
 confounder <- function(model) {
       model.sum <- summary(model)
