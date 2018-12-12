@@ -1117,7 +1117,16 @@ tibble(
       if_else((conf_OR >= lower_CI & conf_OR <= upper_CI), FALSE, TRUE)
   )
 
+smoke_diabp = gee(cursmoke ~ diabp + sysbp + prevhyp + hyperten, 
+      data = frmgham, 
+      id = randid, 
+      family = binomial,
+      corstr = ("unstructured"))
+summary(smoke_diabp)
+
 #confounders: sysbp, prevhyp, hyperten
 ```
+
+From the table above, we found "sysbp", "prevhyp" and "hyperten" are confounders. After adding the confounders, the final model is shown above. For a one-unit increase in the diastolic blood pressure, the expected change in log odds is 0.009, adjusting for systolic blood pressure, prevalent hypertensive and hypertensive.
 
 (3)The relationship between current smoking status and serum total cholesterol.   Again, while answering these questions, please account for any confounders that you have evidence may impact these relationships. 
