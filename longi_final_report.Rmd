@@ -17,7 +17,6 @@ frmgham =
   clean_names() %>% select(cursmoke, everything()) %>% 
   mutate(sex = as.factor(sex),
          bpmeds = as.factor(bpmeds),
-         cursmoke = as.factor(cursmoke),
          educ = as.factor(educ),
          diabetes = as.factor(diabetes),
          prevap = as.factor(prevap),
@@ -26,7 +25,20 @@ frmgham =
          prevstrk = as.factor(prevstrk),
          prevhyp = as.factor(prevhyp)) %>% 
   as.tibble()
+
+## created age category variable (age_ctg)
+frmgham =
+  frmgham %>% 
+  mutate(
+      age_ctg = case_when(
+      age %in% 35:44 ~ "35-44",
+      age %in% 45:54 ~ "45-54",
+      age %in% 55:64 ~ "55-64",
+      age %in% 65:74 ~ "65-74",
+      age >= 75 ~ "75+"
+    )) 
 ```
+
 
 #missing values
 ```{r}
@@ -80,21 +92,35 @@ frmgham %>%
 ```
 * In general, an increase in age seems to results in a decrease in current smoking status for both gender group.
 
-## created age category
+### cursmoke vs age_ctg 
 ```{r}
-frmgham =
-  frmgham %>% 
-  mutate(
-      age_ctg = case_when(
-      age %in% 35:44 ~ "35-44",
-      age %in% 45:54 ~ "45-54",
-      age %in% 55:64 ~ "55-64",
-      age %in% 65:74 ~ "65-74",
-      age >= 75 ~ "75+"
-    )) 
+frmgham %>% 
+  select(randid, cursmoke, age_ctg) %>% 
+  na.omit() %>% 
+  group_by(age_ctg) %>% 
+  summarise(p_cursmoke = sum(cursmoke)/n()) %>% 
+  ggplot(aes(x = age_ctg, y = p_cursmoke)) + 
+  geom_bar(stat = "identity") +
+  labs(title = "Relationship between categorized age and smoking status",
+       x = "Age",
+       y = "Probability of current smoking")
 ```
 
-
+### cursmoke vs age_ctg by sex 
+```{r}
+frmgham %>% 
+  mutate(sex = ifelse(sex == 1, "male", "women")) %>%
+  select(randid, cursmoke, age_ctg, sex) %>% 
+  na.omit() %>% 
+  group_by(age_ctg, sex) %>% 
+  summarise(p_cursmoke = sum(cursmoke)/n()) %>% 
+  ggplot(aes(x = age_ctg, y = p_cursmoke, color = sex, group = sex)) + 
+  geom_line() +
+  geom_point() +
+  labs(title = "Relationship between categorized age and smoking status by sex",
+       x = "Age",
+       y = "Probability of current smoking")
+```
 
 
 
