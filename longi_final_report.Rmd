@@ -192,6 +192,7 @@ frmgham %>%
 ```
 
 ## Finding confounders
+###(1) sysbp_ctg
 ```{r}
 sex_age <- 
   gee(cursmoke ~ sex + age, 
@@ -207,19 +208,22 @@ sex_age_sysbp <-
       family = binomial,
       corstr = ("unstructured"))
 
-CI_sex_age =
-  tibble(
-    OR =
-      exp(coef(summary(sex_age))[,1]),
+tibble(
+    variable = c("sex2", "age"),
+    OR = 
+      exp(coef(summary(sex_age))[2:3,1]),
     lower_CI  = 
-      exp(coef(summary(sex_age))[,1] - 1.96*(coef(summary(sex_age))[,4])),
+      exp(coef(summary(sex_age))[2:3,1] - 1.96*(coef(summary(sex_age))[2:3,4])),
     upper_CI = 
-      exp(coef(summary(sex_age))[,1] + 1.96*(coef(summary(sex_age))[,4])),
+      exp(coef(summary(sex_age))[2:3,1] + 1.96*(coef(summary(sex_age))[2:3,4])),
     sysbp_OR =
-      exp(coef(summary(sex_age_sysbp))[,1])
-  )
+      exp(coef(summary(sex_age_sysbp))[2:3,1]),
+    confounder =
+      if_else((sysbp_OR >= lower_CI & sysbp_OR <= upper_CI), FALSE, TRUE)
+  ) %>% 
+  knitr::kable(digits = 3)
 ```
-
+sysbp_ctg is not a confounder since inferences for odds ratios of current smoking by sex and age were not changed by sysbp_ctg at the significance level 0.05.  
 
 (2) Is there a relationship between the number of cigarettes smoked per day and age?  Does this relationship differ by sex? 
 
