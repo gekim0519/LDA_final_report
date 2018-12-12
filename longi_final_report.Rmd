@@ -602,6 +602,34 @@ Next you are interested in the relationship between certain health outcomes and 
 
 
 (2)The relationship between current smoking status and diastolic blood pressure.
+```{r}
+sex_age <- 
+  gee(cursmoke ~ diabp, 
+      data = frmgham, 
+      id = randid, 
+      family = binomial,
+      corstr = ("unstructured"))
+#confounders: sysbp, prevhyp, hyperten, timehyp
+sex_age_sysbp <- 
+  gee(cursmoke ~ diabp + timehyp, 
+      data = frmgham, 
+      id = randid, 
+      family = binomial,
+      corstr = ("unstructured"))
 
+tibble(
+    variable = c("timehyp"),
+    OR = 
+      exp(coef(summary(sex_age))[2,1]),
+    lower_CI  = 
+      exp(coef(summary(sex_age))[2,1] - 1.96*(coef(summary(sex_age))[2,4])),
+    upper_CI = 
+      exp(coef(summary(sex_age))[2,1] + 1.96*(coef(summary(sex_age))[2,4])),
+    sysbp_OR =
+      exp(coef(summary(sex_age_sysbp))[2,1]),
+    confounder =
+      if_else((sysbp_OR >= lower_CI & sysbp_OR <= upper_CI), FALSE, TRUE)
+  )
+```
 
 (3)The relationship between current smoking status and serum total cholesterol.   Again, while answering these questions, please account for any confounders that you have evidence may impact these relationships. 
