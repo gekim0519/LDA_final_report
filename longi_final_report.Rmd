@@ -73,7 +73,19 @@ frmgham =
       diabp > 120 ~ "crisis"
       ),
     diabp_ctg = fct_relevel(diabp_ctg, "normal and elevated")) 
+
+select(frmgham, -randid) %>% 
+  lapply(., as.numeric)%>% 
+  cor(.)
 ```
+
+# Descriptive statistics
+```{r}
+#descriptive statistics for the data
+
+summary(frmgham)
+```
+
 
 
 #missing values
@@ -257,7 +269,7 @@ frmgham %>%
 
 #2.Target question:
 
-Next you are interested in the relationship between certain health outcomes and smoking status.  In particular you are interested in :
+Next you are interested in the relationship between certain health outcomes and smoking status. In particular you are interested in :
 
 
 (1)The relationship between current smoking status and systolic blood pressure.
@@ -266,4 +278,173 @@ Next you are interested in the relationship between certain health outcomes and 
 (2)The relationship between current smoking status and diastolic blood pressure.
 
 
-(3)The relationship between current smoking status and serum total cholesterol.   Again, while answering these questions, please account for any confounders that you have evidence may impact these relationships. 
+(3)The relationship between current smoking status and serum total cholesterol. Again, while answering these questions, please account for any confounders that you have evidence may impact these relationships. 
+
+
+```{r}
+frmgham %>% 
+  ggplot(., aes(x=totchol, y=cursmoke)) +
+    geom_jitter() + 
+    geom_smooth(method = "loess") +ggtitle("Unadjusted relationship between current smoking status and serum total cholesterol")
+
+
+#https://medlineplus.gov/cholesterollevelswhatyouneedtoknow.html
+#categorized totchol based on link above
+
+frmgham=frmgham %>% 
+  mutate(totchol_ctg= ifelse(age<=19 & totchol<170,0,
+                             ifelse(age>19&totchol %in% c(125, 200), 0,1)))
+table(frmgham$totchol_ctg)
+# 124 normal total chol 
+# 11503 abnormal total chol
+```
+
+## Finding confounders
+
+(a) Sex -should be adjusted
+```{r}
+frmgham %>% 
+  ggplot(., aes(x=totchol, y=cursmoke)) +
+    geom_jitter() + 
+    geom_smooth(method = "loess") +ggtitle("Unadjusted relationship between current smoking status and serum total cholesterol")+
+  facet_grid(~sex)
+
+null_model=gee(cursmoke ~ totchol, data = frmgham,id = randid,family = binomial,corstr = ("unstructured"))
+summary(null_model)
+#without adjusting for sex
+null_ci=c(exp(coef(summary(null_model))[2, 1]+ 1.96*coef(summary(null_model))[2, 4]),exp(coef(summary(null_model))[2, 1]- 1.96*coef(summary(null_model))[2, 4]))
+#[1] 0.9998513 0.9981607
+#adjusting for sex
+sex_totchol=gee(cursmoke ~ totchol+sex, data = frmgham,id = randid,family = binomial,corstr = ("unstructured"))
+summary(sex_totchol)
+exp(coef(summary(sex_totchol))[2, 1]) %in% null_ci
+
+frmgham%>% 
+  select(randid,totchol_ctg, sex, cursmoke) %>% 
+  na.omit() %>% 
+  group_by(sex,totchol_ctg) %>% 
+  dplyr::summarise(percent.currentsmoke = sum(cursmoke)/n(),
+                   n = n())
+
+```
+
+* Sex does confound the relationship between between current smoking status and serum total cholesterol since 0.9994668 is in the 95% CI from the model without sex adjusted.
+
+
+(b) PREVCHD 
+
+```{r}
+frmgham %>% 
+  ggplot(., aes(x=totchol, y=cursmoke)) +
+    geom_jitter() + 
+    geom_smooth(method = "loess") +ggtitle("Unadjusted relationship between current smoking status and serum total cholesterol")+
+  facet_grid(~prevchd)
+
+#adjusting for prevchd
+prevchd_totchol=gee(cursmoke ~ totchol+prevchd, data = frmgham,id = randid,family = binomial,corstr = ("unstructured"))
+summary(prevchd_totchol)
+exp(coef(summary(prevchd_totchol))[2, 1]) %in% null_ci
+
+frmgham%>% 
+  select(randid,totchol_ctg, prevchd, cursmoke) %>% 
+  na.omit() %>% 
+  group_by(prevchd,totchol_ctg) %>% 
+  dplyr::summarise(percent.currentsmoke = sum(cursmoke)/n(),
+                   n = n())
+
+```
+
+
+* prevchd_totchol does confound the relationship between between current smoking status and serum total cholesterol.
+
+(3) BMI
+```{r}
+frmgham= frmgham %>% 
+  mutate(bmi=as.numeric(as.character(bmi))) %>% 
+  mutate(bmi_cat = ifelse(bmi<18.5,0,ifelse(bmi %in% c(18.5,24.9), 1, ifelse(bmi %in% c(25, 29.9),2, 3))))
+#adjusting for prevchd
+bmi_totchol=gee(cursmoke ~ totchol+bmi, data = frmgham,id = randid,family = binomial,corstr = ("unstructured"))
+summary(bmi_totchol)
+exp(coef(summary(bmi_totchol))[2, 1]) %in% null_ci #bmi as numeric not confounder
+
+bmi_cat_totchol=gee(cursmoke ~ totchol+bmi_cat, data = frmgham,id = randid,family = binomial,corstr = ("unstructured"))
+exp(coef(summary(bmi_cat_totchol))[2, 1]) %in% null_ci
+
+
+frmgham%>% 
+  select(randid,totchol_ctg, bmi_cat, cursmoke) %>% 
+  na.omit() %>% 
+  group_by(bmi_cat,totchol_ctg) %>% 
+  dplyr::summarise(percent.currentsmoke = sum(cursmoke)/n(),
+                   n = n())
+```
+
+* bmi_cat and bmi do confound the relationship between between current smoking status and serum total cholesterol.
+
+
+(3) age
+
+
+```{r}
+#adjusting for age
+age_totchol=gee(cursmoke ~ totchol+age, data = frmgham,id = randid,family = binomial,corstr = ("unstructured"))
+summary(age_totchol)
+exp(coef(summary(age_totchol))[2, 1]) %in% null_ci #age as numeric not confounder
+
+
+frmgham%>% 
+  select(randid,totchol_ctg, age_ctg, cursmoke) %>% 
+  na.omit() %>% 
+  group_by(age_ctg,totchol_ctg) %>% 
+  dplyr::summarise(percent.currentsmoke = sum(cursmoke)/n(),
+                   n = n())
+```
+
+(5) prevap
+
+
+```{r}
+prevap_totchol=gee(cursmoke ~ totchol+prevap, data = frmgham,id = randid,family = binomial,corstr = ("unstructured"))
+summary(prevap_totchol)
+exp(coef(summary(prevap_totchol))[2, 1]) %in% null_ci #prevap is a confounder
+
+
+frmgham%>% 
+  select(randid,totchol_ctg, prevap, cursmoke) %>% 
+  na.omit() %>% 
+  group_by(prevap,totchol_ctg) %>% 
+  dplyr::summarise(percent.currentsmoke = sum(cursmoke)/n(),
+                   n = n())
+```
+
+(6) prevmi
+```{r}
+
+prevmi_totchol=gee(cursmoke ~ totchol+prevmi, data = frmgham,id = randid,family = binomial,corstr = ("unstructured"))
+summary(prevmi_totchol)
+exp(coef(summary(prevmi_totchol))[2, 1]) %in% null_ci #prevmi is a confounder
+
+
+frmgham%>% 
+  select(randid,totchol_ctg, prevmi, cursmoke) %>% 
+  na.omit() %>% 
+  group_by(prevmi,totchol_ctg) %>% 
+  dplyr::summarise(percent.currentsmoke = sum(cursmoke)/n(),
+                   n = n())
+```
+
+(7) storke
+```{r}
+
+prevstrk_totchol=gee(cursmoke ~ totchol+prevstrk, data = frmgham,id = randid,family = binomial,corstr = ("unstructured"))
+summary(prevstrk_totchol)
+exp(coef(summary(prevstrk_totchol))[2, 1]) %in% null_ci #prevmi is a confounder
+
+
+frmgham%>% 
+  select(randid,totchol_ctg, prevstrk, cursmoke) %>% 
+  na.omit() %>% 
+  group_by(prevstrk,totchol_ctg) %>% 
+  dplyr::summarise(percent.currentsmoke = sum(cursmoke)/n(),
+                   n = n())
+```
