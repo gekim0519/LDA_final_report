@@ -12,6 +12,7 @@ output: pdf_document
 knitr::opts_chunk$set(echo = FALSE)
 library(tidyverse)
 library(janitor)
+library(mice)
 frmgham = 
   read.csv2("frmgham2.csv", sep = ",") %>% 
   clean_names() %>% select(cursmoke, everything()) %>% 
@@ -51,8 +52,8 @@ d1 = frmgham %>%
   summarize(n = n())
 table(d1$n)
 # 447 patients have only one obs
-#781 patients have only two obs
-#3206 patients have all three obs
+# 781 patients have only two obs
+# 3206 patients have all three obs
 
 number.subjects <- 
   frmgham  %>% 
@@ -62,7 +63,27 @@ number.subjects <-
   length()
 
 number.subjects
+
+# missing data pattern by variables
+
+sort(sapply(frmgham, function(x) { sum(is.na(x)) }), decreasing=TRUE)
+
 ```
+
+# Impute missing values using MICE package
+```{r}
+
+frmgham_temp <- mice(frmgham,m=1, method='cart', printFlag=FALSE,seed = 1)
+frmgham
+summary(frmgham_temp)
+frmgham_complete <- complete(frmgham_temp)
+#save(frmgham_complete, file = "frmgham_complete.RData")
+
+```
+
+
+* The output tells us that 2243 samples are complete, 7077 samples miss both hdlc and ldlc, 4 samples miss only the glucose value and so on.
+
 
 * there are 447 patients who have only one obs; there are 781 patients who have only two obs and 3206 patients have all three obs. In total, there are 4434 patients in the study.
 
@@ -137,23 +158,7 @@ frmgham %>%
 ```
 
 ```{r}
-confounder <- function(model) {
-      model.sum <- summary(model)
-      model.b <- model.sum$coefficients[2, 1]
-      oldmodel <- update(model, . ~ . -x)
-      oldmodel.sum <- summary(oldmodel)
-      oldmodel.b <- oldmodel.sum$coefficients[2, 1]
-      model.frame <- tidy(model.sum)
-      model.sub <- subset(model.frame, term = "x")
-      model.sub.b <- model.sub[, 5]
-      if ((model.b - oldmodel.b)/model.b >= .1 |
-           model.sub.b < .05)
-        return(model.sum)
-}
 
-    lapply(Covariates, function(x) {
-      confounder(glm(Outcome ~, family = binomial(link=logit)))
-    })
 ```
 
 
