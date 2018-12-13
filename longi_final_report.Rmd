@@ -75,6 +75,12 @@ frmgham =
       ),
     diabp_ctg = fct_relevel(diabp_ctg, "normal and elevated")) 
 
+<<<<<<< HEAD
+=======
+# select(frmgham, -randid) %>% 
+#   lapply(., as.numeric)%>% 
+#   cor(.)
+>>>>>>> 3be9cc7b5a5db850200a76cdf470b60383298b71
 ```
 
 # Descriptive statistics
@@ -88,54 +94,54 @@ summary(frmgham)
 
 #missing values
 ```{r}
-frmgham %>% 
-  group_by(period) %>% 
-  summarize(sum_na_period = sum(is.na(period)))
-
-d1 = frmgham %>% 
-  group_by(randid) %>% 
-  summarize(n = n())
-table(d1$n)
-# 447 patients have only one obs
-# 781 patients have only two obs
-# 3206 patients have all three obs
-
-number.subjects <- 
-  frmgham  %>% 
-  select(randid) %>% 
-  distinct() %>% 
-  unlist() %>%
-  length()
-
-number.subjects
-
-# missing data pattern by variables
-
-sort(sapply(frmgham, function(x) { sum(is.na(x)) }), decreasing=TRUE)
+# frmgham %>% 
+#   group_by(period) %>% 
+#   summarize(sum_na_period = sum(is.na(period)))
+# 
+# d1 = frmgham %>% 
+#   group_by(randid) %>% 
+#   summarize(n = n())
+# table(d1$n)
+# # 447 patients have only one obs
+# # 781 patients have only two obs
+# # 3206 patients have all three obs
+# 
+# number.subjects <- 
+#   frmgham  %>% 
+#   select(randid) %>% 
+#   distinct() %>% 
+#   unlist() %>%
+#   length()
+# 
+# number.subjects
+# 
+# # missing data pattern by variables
+# 
+# sort(sapply(frmgham, function(x) { sum(is.na(x)) }), decreasing=TRUE)
 
 ```
 
 # Impute missing values using MICE package
 ```{r}
 load("frmgham_complete.RData")
-# frmgham_temp <- mice(frmgham,m=1, method='cart', printFlag=FALSE,seed = 1)
-# frmgham
-# summary(frmgham_temp)
-# frmgham_complete <- complete(frmgham_temp)
-#save(frmgham_complete, file = "frmgham_complete.RData")
-frmgham_complete =
-  frmgham_complete %>% 
-  mutate(
-      age_ctg = case_when(
-      age < 35 ~ "35-",  
-      age %in% 35:44 ~ "35-44",
-      age %in% 45:54 ~ "45-54",
-      age %in% 55:64 ~ "55-64",
-      age %in% 65:74 ~ "65-74",
-      age >= 75 ~ "75+"
-    )) 
-
-sort(sapply(frmgham_complete, function(x) { sum(is.na(x)) }), decreasing=TRUE)
+# # frmgham_temp <- mice(frmgham,m=1, method='cart', printFlag=FALSE,seed = 1)
+# # frmgham
+# # summary(frmgham_temp)
+# # frmgham_complete <- complete(frmgham_temp)
+# #save(frmgham_complete, file = "frmgham_complete.RData")
+# frmgham_complete =
+#   frmgham_complete %>% 
+#   mutate(
+#       age_ctg = case_when(
+#       age < 35 ~ "35-",  
+#       age %in% 35:44 ~ "35-44",
+#       age %in% 45:54 ~ "45-54",
+#       age %in% 55:64 ~ "55-64",
+#       age %in% 65:74 ~ "65-74",
+#       age >= 75 ~ "75+"
+#     )) 
+# 
+# sort(sapply(frmgham_complete, function(x) { sum(is.na(x)) }), decreasing=TRUE)
 
 ```
 
@@ -147,29 +153,6 @@ sort(sapply(frmgham_complete, function(x) { sum(is.na(x)) }), decreasing=TRUE)
 
 ##1. Target question:
 1) Is there a relationship between age and smoking status?  Does this relationship differ by sex? 
-
-* In general, an increase in age seems to results in a decrease in current smoking status. However, the age where it has the highest probability of being a smoker is around 40.
-
-
-
-```{r}
-frmgham %>% 
-  ggplot(., aes(x=age, y=cursmoke)) +
-    geom_jitter() + 
-    geom_smooth(method = "loess") +ggtitle("Unadjusted relationship between age and smoking status")
-```
-
-
-```{r}
-frmgham %>% 
-  mutate(sex=ifelse(sex==1, "male","women")) %>% 
-  ggplot(., aes(x=age, y=cursmoke)) +
-    geom_jitter() + 
-    geom_smooth(method = "loess") +
-  facet_grid(~sex)+
-  ggtitle("Relationship between age and smoking status by gender")
-```
-* In general, an increase in age seems to results in a decrease in current smoking status for both gender group.
 
 ### cursmoke vs age_ctg 
 ```{r}
@@ -201,17 +184,21 @@ frmgham %>%
        y = "Probability of current smoking")
 ```
 
+
+### See random effects 
+
+
 ## Finding confounders
-### sex and cursmoke -- confounder: hdlc, ldlc
+### age and cursmoke -- confounder: hdlc, ldlc
 ```{r}
-sex <- 
-  gee(cursmoke ~ sex, 
+age <- 
+  gee(cursmoke ~ age, 
       data = frmgham, 
       id = randid, 
       family = binomial,
       corstr = ("unstructured"))
-```
 
+<<<<<<< HEAD
 ####sysbp
 ```{r}
 sex_sysbp <- 
@@ -746,6 +733,11 @@ age_totchol <-
       id = randid, 
       family = binomial,
       corstr = ("unstructured"))
+=======
+pot_conf <- names(frmgham)[-c(1:3, 5)]
+pot_conf <- 
+  pot_conf[-c(grep("time", pot_conf))]
+>>>>>>> 3be9cc7b5a5db850200a76cdf470b60383298b71
 
 tibble(
     variable = c("age"),
@@ -790,6 +782,7 @@ tibble(
 ```
 hdlc is a confounder since inferences for odds ratios of current smoking by age was changed by hdlc at the significance level 0.05.
 
+<<<<<<< HEAD
 ####ldlc #### confounder
 ```{r}
 age_ldlc <- 
@@ -809,6 +802,27 @@ tibble(
       exp(coef(summary(age))[2,1] + 1.96*(coef(summary(age))[2,4])),
     ldlc_OR =
       exp(coef(summary(age_ldlc))[2,1]),
+=======
+for (conf in pot_conf) {
+  
+  data <- cbind(frmgham[,c("cursmoke", "age")], frmgham[,conf])
+  try(fit_gee <- gee(cursmoke ~ ., 
+      data = data, 
+      id = frmgham$randid, 
+      family = binomial,
+      corstr = ("unstructured")))
+ 
+  result <- tibble(
+    variable = c("age"),
+    OR =
+      exp(coef(summary(age))[2,1]),
+    lower_CI  =
+      exp(coef(summary(age))[2,1] - 1.96*(coef(summary(age))[2,4])),
+    upper_CI =
+      exp(coef(summary(age))[2,1] + 1.96*(coef(summary(age))[2,4])),
+    potconf_OR =
+      exp(coef(summary(fit_gee))[2,1]),
+>>>>>>> 3be9cc7b5a5db850200a76cdf470b60383298b71
     confounder =
       if_else((ldlc_OR >= lower_CI & ldlc_OR <= upper_CI), FALSE, TRUE)
   ) %>% 
@@ -1040,6 +1054,110 @@ tibble(
 ```
 prevhyp is not a confounder since inferences for odds ratios of current smoking by age was not changed by prevhyp at the significance level 0.05.
 
+## Finding confounders using imputed data
+### age and cursmoke -- confounder: hdlc, ldlc
+```{r}
+# age <- 
+#   gee(cursmoke ~ age, 
+#       data = frmgham_complete, 
+#       id = randid, 
+#       family = binomial,
+#       corstr = ("unstructured"))
+# 
+# pot_conf <- names(frmgham_complete)[-c(1:3, 5)]
+# pot_conf <- 
+#   pot_conf[-c(grep("time", pot_conf), frmgham_complete$period, frmgham_complete$death)]
+# 
+# conf_det <- vector("list", length = length(pot_conf))
+# names(conf_det) <- pot_conf
+# 
+# 
+# 
+# for (conf in pot_conf) {
+#   
+#   data <- cbind(frmgham_complete[,c("cursmoke", "age")], frmgham_complete[,conf])
+#   try(fit_gee <- gee(cursmoke ~ ., 
+#       data = data, 
+#       id = frmgham_complete$randid, 
+#       family = binomial,
+#       corstr = ("unstructured")))
+#  
+#   result <- tibble(
+#     variable = c("age"),
+#     OR =
+#       exp(coef(summary(age))[2,1]),
+#     lower_CI  =
+#       exp(coef(summary(age))[2,1] - 1.96*(coef(summary(age))[2,4])),
+#     upper_CI =
+#       exp(coef(summary(age))[2,1] + 1.96*(coef(summary(age))[2,4])),
+#     potconf_OR =
+#       exp(coef(summary(fit_gee))[2,1]),
+#     confounder =
+#       if_else((potconf_OR >= lower_CI & potconf_OR <= upper_CI), FALSE, TRUE)
+#   )
+# 
+#   conf_det[[conf]] <- result
+# }
+# 
+# map(conf_det, knitr::kable, digits = 3)
+```
+
+## Finding confounders at baseline with glm
+### age and cursmoke -- confounder: hdlc, ldlc
+```{r}
+# frmgham_cs <-
+#   frmgham %>% filter(period == 1) %>% na.omit()
+# 
+# age <-
+#   glm(cursmoke ~ age,
+#       data = frmgham_cs,
+#       family = binomial)
+# 
+# pot_conf <- names(frmgham_cs)[-c(1:3, 5)]
+# pot_conf <-
+#   pot_conf[-c(grep("time", pot_conf), frmgham_cs$period, frmgham_cs$death)]
+# 
+# conf_det <- vector("list", length = length(pot_conf))
+# names(conf_det) <- pot_conf
+# 
+# 
+# 
+# for (conf in pot_conf) {
+# 
+#   data <- cbind(frmgham_cs[,c("cursmoke", "age")], frmgham_cs[,conf])
+#   try(fit_glm <- glm(cursmoke ~ .,
+#       data = data,
+#       family = binomial))
+# 
+#   result <- tibble(
+#     variable = c("age"),
+#     OR =
+#       exp(coef(summary(age))[2,1]),
+#     lower_CI  =
+#       exp(coef(summary(age))[2,1] - 1.96*(coef(summary(age))[2,2])),
+#     upper_CI =
+#       exp(coef(summary(age))[2,1] + 1.96*(coef(summary(age))[2,2])),
+#     potconf_OR =
+#       exp(coef(summary(fit_glm))[2,1]),
+#     confounder =
+#       if_else((potconf_OR >= lower_CI & potconf_OR <= upper_CI), FALSE, TRUE)
+#   )
+# 
+#   conf_det[[conf]] <- result
+# }
+# 
+# map(conf_det, knitr::kable, digits = 3)
+```
+
+
+## Fit glmer
+```{r}
+cursmoke_age <-
+  glmer(cursmoke ~ age + sex + educ + prevchd + (1|randid), 
+        data = frmgham, family = binomial)
+summary(cursmoke_age)
+```
+
 
 (2) Is there a relationship between the number of cigarettes smoked per day and age?  Does this relationship differ by sex? 
 
@@ -1214,7 +1332,61 @@ Next you are interested in the relationship between certain health outcomes and 
 
 
 (1)The relationship between current smoking status and systolic blood pressure.
+```{r}
+frmgham %>% 
+  ggplot(., aes(x=sysbp, y=cursmoke)) +
+    geom_jitter() + 
+    geom_smooth(method = "loess") + 
+  ggtitle("Unadjusted relationship between current smoking status and diastolic blood pressure")
 
+#https://www.ncbi.nlm.nih.gov/pubmed/7790985
+#From the research paper above, diastolic blood pressure and hypertension are potential confounders.
+
+#center the variables and find the confounder
+frmgham$diabp_c = frmgham$diabp-mean(frmgham$diabp)
+frmgham$sysbp_c = frmgham$sysbp-mean(frmgham$sysbp)
+
+sysbp <- 
+  glmer(cursmoke ~ sysbp_c + (1|randid), 
+      data = frmgham, 
+      family = binomial)
+
+sysbp_diabp <- 
+  glmer(cursmoke ~ sysbp_c + diabp_c + (1|randid), 
+      data = frmgham, 
+      family = binomial)
+
+sysbp_prevhyp <- 
+  glmer(cursmoke ~ sysbp_c + prevhyp + (1|randid), 
+      data = frmgham, 
+      family = binomial)
+
+sysbp_hyperten <- 
+  glmer(cursmoke ~ sysbp_c + hyperten+ (1|randid), 
+      data = frmgham, 
+      family = binomial)
+
+tibble(
+    variable = c("diabp", "prevhyp", "hyperten"),
+    OR = 
+      exp(coef(summary(sysbp))[2,1]),
+    lower_CI  = 
+      exp(coef(summary(sysbp))[2,1] - 1.96*(coef(summary(sysbp))[2,4])),
+    upper_CI = 
+      exp(coef(summary(sysbp))[2,1] + 1.96*(coef(summary(sysbp))[2,4])),
+    conf_OR =
+      c(exp(coef(summary(sysbp_diabp))[2,1]),
+        exp(coef(summary(sysbp_prevhyp))[2,1]),
+        exp(coef(summary(sysbp_hyperten))[2,1])),
+    confounder =
+      if_else((conf_OR >= lower_CI & conf_OR <= upper_CI), FALSE, TRUE)
+  )
+
+smoke_diabp = glmer(cursmoke ~ diabp_c + sysbp_c + prevhyp + hyperten+ (1|randid), 
+      data = frmgham, 
+      family = binomial)
+summary(smoke_diabp)
+```
 
 (2)The relationship between current smoking status and diastolic blood pressure.
 ```{r}
