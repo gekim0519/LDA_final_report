@@ -411,7 +411,61 @@ Next you are interested in the relationship between certain health outcomes and 
 
 
 (1)The relationship between current smoking status and systolic blood pressure.
+```{r}
+frmgham %>% 
+  ggplot(., aes(x=sysbp, y=cursmoke)) +
+    geom_jitter() + 
+    geom_smooth(method = "loess") + 
+  ggtitle("Unadjusted relationship between current smoking status and diastolic blood pressure")
 
+#https://www.ncbi.nlm.nih.gov/pubmed/7790985
+#From the research paper above, diastolic blood pressure and hypertension are potential confounders.
+
+#center the variables and find the confounder
+frmgham$diabp_c = frmgham$diabp-mean(frmgham$diabp)
+frmgham$sysbp_c = frmgham$sysbp-mean(frmgham$sysbp)
+
+sysbp <- 
+  glmer(cursmoke ~ sysbp_c + (1|randid), 
+      data = frmgham, 
+      family = binomial)
+
+sysbp_diabp <- 
+  glmer(cursmoke ~ sysbp_c + diabp_c + (1|randid), 
+      data = frmgham, 
+      family = binomial)
+
+sysbp_prevhyp <- 
+  glmer(cursmoke ~ sysbp_c + prevhyp + (1|randid), 
+      data = frmgham, 
+      family = binomial)
+
+sysbp_hyperten <- 
+  glmer(cursmoke ~ sysbp_c + hyperten+ (1|randid), 
+      data = frmgham, 
+      family = binomial)
+
+tibble(
+    variable = c("diabp", "prevhyp", "hyperten"),
+    OR = 
+      exp(coef(summary(sysbp))[2,1]),
+    lower_CI  = 
+      exp(coef(summary(sysbp))[2,1] - 1.96*(coef(summary(sysbp))[2,4])),
+    upper_CI = 
+      exp(coef(summary(sysbp))[2,1] + 1.96*(coef(summary(sysbp))[2,4])),
+    conf_OR =
+      c(exp(coef(summary(sysbp_diabp))[2,1]),
+        exp(coef(summary(sysbp_prevhyp))[2,1]),
+        exp(coef(summary(sysbp_hyperten))[2,1])),
+    confounder =
+      if_else((conf_OR >= lower_CI & conf_OR <= upper_CI), FALSE, TRUE)
+  )
+
+smoke_diabp = glmer(cursmoke ~ diabp_c + sysbp_c + prevhyp + hyperten+ (1|randid), 
+      data = frmgham, 
+      family = binomial)
+summary(smoke_diabp)
+```
 
 (2)The relationship between current smoking status and diastolic blood pressure.
 ```{r}
