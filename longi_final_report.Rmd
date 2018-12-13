@@ -564,7 +564,7 @@ tibble(
 
 smoke_diabp = glmer(cursmoke ~ diabp_c + sysbp_c + prevhyp + hyperten+ (1|randid), 
       data = frmgham, 
-      family = binomial)
+      family = binomial,nAGQ = 0)
 summary(smoke_diabp)
 ```
 
@@ -580,9 +580,6 @@ frmgham %>%
 #From the research paper above, systolic blood pressure and hypertension are potential confounders.
 
 #center the variables and find the confounder
-frmgham$diabp_c = frmgham$diabp-mean(frmgham$diabp)
-frmgham$sysbp_c = frmgham$sysbp-mean(frmgham$sysbp)
-
 diabp <- 
   glmer(cursmoke ~ diabp_c + (1|randid), 
       data = frmgham, 
@@ -621,7 +618,7 @@ tibble(
 
 smoke_diabp = glmer(cursmoke ~ diabp_c + sysbp_c + prevhyp + hyperten+ (1|randid), 
       data = frmgham, 
-      family = binomial)
+      family = binomial,nAGQ = 0)
 summary(smoke_diabp)
 
 #confounders: sysbp, prevhyp, hyperten
