@@ -14,6 +14,7 @@ library(tidyverse)
 library(janitor)
 library(mice)
 library(gee)
+library(lme4)
 
 frmgham = 
   read.csv2("frmgham2.csv", sep = ",", na.strings=c("","NA")) %>% 
@@ -1221,33 +1222,38 @@ Next you are interested in the relationship between certain health outcomes and 
 
 (2)The relationship between current smoking status and diastolic blood pressure.
 ```{r}
+frmgham %>% 
+  ggplot(., aes(x=diabp, y=cursmoke)) +
+    geom_jitter() + 
+    geom_smooth(method = "loess") + 
+  ggtitle("Unadjusted relationship between current smoking status and diastolic blood pressure")
+
+#https://www.ncbi.nlm.nih.gov/pubmed/7790985
+#From the research paper above, systolic blood pressure and hypertension are potential confounders.
+
+#center the variables and find the confounder
+frmgham$diabp_c = frmgham$diabp-mean(frmgham$diabp)
+frmgham$sysbp_c = frmgham$sysbp-mean(frmgham$sysbp)
+
 diabp <- 
-  gee(cursmoke ~ diabp, 
+  glmer(cursmoke ~ diabp_c + (1|randid), 
       data = frmgham, 
-      id = randid, 
-      family = binomial,
-      corstr = ("unstructured"))
+      family = binomial)
 
 diabp_sysbp <- 
-  gee(cursmoke ~ diabp + sysbp, 
+  glmer(cursmoke ~ diabp_c + sysbp_c + (1|randid), 
       data = frmgham, 
-      id = randid, 
-      family = binomial,
-      corstr = ("unstructured"))
+      family = binomial)
 
 diabp_prevhyp <- 
-  gee(cursmoke ~ diabp + prevhyp, 
+  glmer(cursmoke ~ diabp_c + prevhyp + (1|randid), 
       data = frmgham, 
-      id = randid, 
-      family = binomial,
-      corstr = ("unstructured"))
+      family = binomial)
 
 diabp_hyperten <- 
-  gee(cursmoke ~ diabp + hyperten, 
+  glmer(cursmoke ~ diabp_c + hyperten+ (1|randid), 
       data = frmgham, 
-      id = randid, 
-      family = binomial,
-      corstr = ("unstructured"))
+      family = binomial)
 
 tibble(
     variable = c("sysbp", "prevhyp", "hyperten"),
@@ -1265,11 +1271,9 @@ tibble(
       if_else((conf_OR >= lower_CI & conf_OR <= upper_CI), FALSE, TRUE)
   )
 
-smoke_diabp = gee(cursmoke ~ diabp + sysbp + prevhyp + hyperten, 
+smoke_diabp = glmer(cursmoke ~ diabp_c + sysbp_c + prevhyp + hyperten+ (1|randid), 
       data = frmgham, 
-      id = randid, 
-      family = binomial,
-      corstr = ("unstructured"))
+      family = binomial)
 summary(smoke_diabp)
 
 #confounders: sysbp, prevhyp, hyperten
