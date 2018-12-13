@@ -218,7 +218,7 @@ sex <-
 ####Loop for finding confounders
 ```{r}
 pot_conf <- names(frmgham)[-(1:5)]
-pot_conf <- pot_conf[-grep("time", pot_conf)]
+pot_conf <- pot_conf[-c(grep("time", pot_conf), frmgham$death)]
 
 conf_det <- vector("list", length = length(pot_conf))
 names(conf_det) <- pot_conf
