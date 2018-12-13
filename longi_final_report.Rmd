@@ -121,7 +121,7 @@ summary(frmgham)
 
 # Impute missing values using MICE package
 ```{r}
-# load("frmgham_complete.RData")
+load("frmgham_complete.RData")
 # # frmgham_temp <- mice(frmgham,m=1, method='cart', printFlag=FALSE,seed = 1)
 # # frmgham
 # # summary(frmgham_temp)
@@ -198,7 +198,7 @@ age <-
 
 pot_conf <- names(frmgham)[-c(1:3, 5)]
 pot_conf <- 
-  pot_conf[-c(grep("time", pot_conf), frmgham$period, frmgham$death)]
+  pot_conf[-c(grep("time", pot_conf))]
 
 conf_det <- vector("list", length = length(pot_conf))
 names(conf_det) <- pot_conf
@@ -234,8 +234,109 @@ for (conf in pot_conf) {
 map(conf_det, knitr::kable, digits = 3)
 ```
 
+## Finding confounders using imputed data
+### age and cursmoke -- confounder: hdlc, ldlc
+```{r}
+# age <- 
+#   gee(cursmoke ~ age, 
+#       data = frmgham_complete, 
+#       id = randid, 
+#       family = binomial,
+#       corstr = ("unstructured"))
+# 
+# pot_conf <- names(frmgham_complete)[-c(1:3, 5)]
+# pot_conf <- 
+#   pot_conf[-c(grep("time", pot_conf), frmgham_complete$period, frmgham_complete$death)]
+# 
+# conf_det <- vector("list", length = length(pot_conf))
+# names(conf_det) <- pot_conf
+# 
+# 
+# 
+# for (conf in pot_conf) {
+#   
+#   data <- cbind(frmgham_complete[,c("cursmoke", "age")], frmgham_complete[,conf])
+#   try(fit_gee <- gee(cursmoke ~ ., 
+#       data = data, 
+#       id = frmgham_complete$randid, 
+#       family = binomial,
+#       corstr = ("unstructured")))
+#  
+#   result <- tibble(
+#     variable = c("age"),
+#     OR =
+#       exp(coef(summary(age))[2,1]),
+#     lower_CI  =
+#       exp(coef(summary(age))[2,1] - 1.96*(coef(summary(age))[2,4])),
+#     upper_CI =
+#       exp(coef(summary(age))[2,1] + 1.96*(coef(summary(age))[2,4])),
+#     potconf_OR =
+#       exp(coef(summary(fit_gee))[2,1]),
+#     confounder =
+#       if_else((potconf_OR >= lower_CI & potconf_OR <= upper_CI), FALSE, TRUE)
+#   )
+# 
+#   conf_det[[conf]] <- result
+# }
+# 
+# map(conf_det, knitr::kable, digits = 3)
+```
+
+## Finding confounders at baseline with glm
+### age and cursmoke -- confounder: hdlc, ldlc
+```{r}
+# frmgham_cs <-
+#   frmgham %>% filter(period == 1) %>% na.omit()
+# 
+# age <-
+#   glm(cursmoke ~ age,
+#       data = frmgham_cs,
+#       family = binomial)
+# 
+# pot_conf <- names(frmgham_cs)[-c(1:3, 5)]
+# pot_conf <-
+#   pot_conf[-c(grep("time", pot_conf), frmgham_cs$period, frmgham_cs$death)]
+# 
+# conf_det <- vector("list", length = length(pot_conf))
+# names(conf_det) <- pot_conf
+# 
+# 
+# 
+# for (conf in pot_conf) {
+# 
+#   data <- cbind(frmgham_cs[,c("cursmoke", "age")], frmgham_cs[,conf])
+#   try(fit_glm <- glm(cursmoke ~ .,
+#       data = data,
+#       family = binomial))
+# 
+#   result <- tibble(
+#     variable = c("age"),
+#     OR =
+#       exp(coef(summary(age))[2,1]),
+#     lower_CI  =
+#       exp(coef(summary(age))[2,1] - 1.96*(coef(summary(age))[2,2])),
+#     upper_CI =
+#       exp(coef(summary(age))[2,1] + 1.96*(coef(summary(age))[2,2])),
+#     potconf_OR =
+#       exp(coef(summary(fit_glm))[2,1]),
+#     confounder =
+#       if_else((potconf_OR >= lower_CI & potconf_OR <= upper_CI), FALSE, TRUE)
+#   )
+# 
+#   conf_det[[conf]] <- result
+# }
+# 
+# map(conf_det, knitr::kable, digits = 3)
+```
 
 
+## Fit glmer
+```{r}
+cursmoke_age <-
+  glmer(cursmoke ~ age + sex + educ + prevchd + (1|randid), 
+        data = frmgham, family = binomial)
+summary(cursmoke_age)
+```
 
 
 (2) Is there a relationship between the number of cigarettes smoked per day and age?  Does this relationship differ by sex? 
