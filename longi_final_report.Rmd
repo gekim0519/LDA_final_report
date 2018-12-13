@@ -1048,140 +1048,48 @@ frmgham %>%
 # I will look into SYSBP DIABP TOTCHOL BMI DIABETES 
 # based on https://tobaccocontrol.bmj.com/content/14/5/315
 
-cigpday.totchol <- 
-  gee(cigpday ~ sex + age + totchol, 
+cigpday.age <- 
+  gee(cigpday ~ age, 
       data = frmgham, 
       id = randid, 
       family = poisson,
       corstr = ("unstructured"))
 
-oldmodel <- update(cigpday.totchol, . ~ . -totchol)
+pot_conf <- names(frmgham)[-c(2, 3, 5, 8)]
+pot_conf <- 
+  pot_conf[-c(grep("time", pot_conf))]
 
-model.sum <- summary(cursmoke.randid)
-oldmodel.sum <- summary(oldmodel)
-      
-tibble(
-    variable = c("sex2", "age"),
-    oldmodel.mean = 
-      exp(oldmodel.sum$coefficients[2:3,1]),
-    lower_CI  = 
-      exp(oldmodel.sum$coefficients[2:3,1] - 1.96*(oldmodel.sum$coefficients[2:3,4])),
-    upper_CI = 
-      exp(oldmodel.sum$coefficients[2:3,1] + 1.96*(oldmodel.sum$coefficients[2:3,4])),
-    model.mean =
-      exp(model.sum$coefficients[2:3,1]),
-    confounder =
-      if_else((model.mean >= lower_CI & model.mean <= upper_CI), FALSE, TRUE)
-  ) %>% 
-  knitr::kable(digits = 3)
+conf_det <- vector("list", length = length(pot_conf))
+names(conf_det) <- pot_conf
 
-cigpday.sysbp <- 
-  gee(cigpday ~ sex + age + sysbp, 
-      data = frmgham, 
-      id = randid, 
+
+for (conf in pot_conf) {
+  
+  data <- cbind(frmgham[,c("cigpday", "age")], frmgham[,conf])
+  try(fit_gee <- gee(cigpday ~ ., 
+      data = data, 
+      id = frmgham$randid, 
       family = poisson,
-      corstr = ("unstructured"))
-
-oldmodel <- update(cigpday.sysbp, . ~ . -sysbp)
-
-model.sum <- summary(cigpday.sysbp)
-oldmodel.sum <- summary(oldmodel)
-      
-tibble(
-    variable = c("sex2", "age"),
-    oldmodel.mean = 
-      exp(oldmodel.sum$coefficients[2:3,1]),
-    lower_CI  = 
-      exp(oldmodel.sum$coefficients[2:3,1] - 1.96*(oldmodel.sum$coefficients[2:3,4])),
-    upper_CI = 
-      exp(oldmodel.sum$coefficients[2:3,1] + 1.96*(oldmodel.sum$coefficients[2:3,4])),
-    model.mean =
-      exp(model.sum$coefficients[2:3,1]),
+      corstr = ("unstructured")))
+ 
+  result <- tibble(
+    variable = c("age"),
+    OR =
+      exp(coef(summary(cigpday.age))[2,1]),
+    lower_CI  =
+      exp(coef(summary(cigpday.age))[2,1] - 1.96*(coef(summary(cigpday.age))[2,4])),
+    upper_CI =
+      exp(coef(summary(cigpday.age))[2,1] + 1.96*(coef(summary(cigpday.age))[2,4])),
+    potconf_OR =
+      exp(coef(summary(fit_gee))[2,1]),
     confounder =
-      if_else((model.mean >= lower_CI & model.mean <= upper_CI), FALSE, TRUE)
-  ) %>% 
-  knitr::kable(digits = 3)
+      if_else((potconf_OR >= lower_CI & potconf_OR <= upper_CI), FALSE, TRUE)
+  )
 
-cigpday.diabp <- 
-  gee(cigpday ~ sex + age + diabp, 
-      data = frmgham, 
-      id = randid, 
-      family = poisson,
-      corstr = ("unstructured"))
+  conf_det[[conf]] <- result
+}
 
-oldmodel <- update(cigpday.diabp, . ~ . -diabp)
-
-model.sum <- summary(cigpday.diabp)
-oldmodel.sum <- summary(oldmodel)
-      
-tibble(
-    variable = c("sex2", "age"),
-    oldmodel.mean = 
-      exp(oldmodel.sum$coefficients[2:3,1]),
-    lower_CI  = 
-      exp(oldmodel.sum$coefficients[2:3,1] - 1.96*(oldmodel.sum$coefficients[2:3,4])),
-    upper_CI = 
-      exp(oldmodel.sum$coefficients[2:3,1] + 1.96*(oldmodel.sum$coefficients[2:3,4])),
-    model.mean =
-      exp(model.sum$coefficients[2:3,1]),
-    confounder =
-      if_else((model.mean >= lower_CI & model.mean <= upper_CI), FALSE, TRUE)
-  ) %>% 
-  knitr::kable(digits = 3)
-
-cigpday.bmi <- 
-  gee(cigpday ~ sex + age + as.numeric(as.character(bmi)), 
-      data = frmgham, 
-      id = randid, 
-      family = poisson,
-      corstr = ("unstructured"))
-
-oldmodel <- update(cigpday.diabp, . ~ . -bmi)
-
-model.sum <- summary(cigpday.bmi)
-oldmodel.sum <- summary(oldmodel)
-      
-tibble(
-    variable = c("sex2", "age"),
-    oldmodel.mean = 
-      exp(oldmodel.sum$coefficients[2:3,1]),
-    lower_CI  = 
-      exp(oldmodel.sum$coefficients[2:3,1] - 1.96*(oldmodel.sum$coefficients[2:3,4])),
-    upper_CI = 
-      exp(oldmodel.sum$coefficients[2:3,1] + 1.96*(oldmodel.sum$coefficients[2:3,4])),
-    model.mean =
-      exp(model.sum$coefficients[2:3,1]),
-    confounder =
-      if_else((model.mean >= lower_CI & model.mean <= upper_CI), FALSE, TRUE)
-  ) %>% 
-  knitr::kable(digits = 3)
-
-cigpday.diabetes <- 
-  gee(cigpday ~ sex + age + diabetes, 
-      data = frmgham, 
-      id = randid, 
-      family = poisson,
-      corstr = ("unstructured"))
-
-oldmodel <- update(cigpday.diabetes, . ~ . -diabetes)
-
-model.sum <- summary(cigpday.diabetes)
-oldmodel.sum <- summary(oldmodel)
-      
-tibble(
-    variable = c("sex2", "age"),
-    oldmodel.mean = 
-      exp(oldmodel.sum$coefficients[2:3,1]),
-    lower_CI  = 
-      exp(oldmodel.sum$coefficients[2:3,1] - 1.96*(oldmodel.sum$coefficients[2:3,4])),
-    upper_CI = 
-      exp(oldmodel.sum$coefficients[2:3,1] + 1.96*(oldmodel.sum$coefficients[2:3,4])),
-    model.mean =
-      exp(model.sum$coefficients[2:3,1]),
-    confounder =
-      if_else((model.mean >= lower_CI & model.mean <= upper_CI), FALSE, TRUE)
-  ) %>% 
-  knitr::kable(digits = 3)
+map(conf_det, knitr::kable, digits = 3)
 ```
 
 
