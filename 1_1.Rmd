@@ -1,10 +1,9 @@
 ---
-title: "problem1_1"
+title: "1_1"
 author: "Youn Kyeong Chang (uni# yc3242)"
-date: "December 13, 2018"
+date: "December 14, 2018"
 output: html_document
 ---
-
 ##1. Target question:
 1) Is there a relationship between age and smoking status?  Does this relationship differ by sex? 
 
