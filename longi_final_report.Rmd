@@ -14,6 +14,7 @@ library(tidyverse)
 library(janitor)
 library(mice)
 library(gee)
+library(lme4)
 
 frmgham = 
   read.csv2("frmgham2.csv", sep = ",", na.strings=c("","NA")) %>% 
@@ -191,6 +192,7 @@ age <-
       id = randid, 
       family = binomial,
       corstr = ("unstructured"))
+```
 
 ####sysbp
 ```{r}
@@ -1157,12 +1159,30 @@ summary(cursmoke_age)
 While answering these questions, please account for any confounders that you have evidence may impact the relationship between age and sex with smoking.
 
 ```{r}
-frmgham %>% 
-  ggplot(., aes(x=age, y=cigpday)) +
-    geom_jitter() + 
-    geom_smooth(method = "loess") +
-  ggtitle("Unadjusted relationship between the number of cigarettes smoked per day and age")
+frmgham_smoker  = frmgham %>%
+filter(cigpday != 0) 
+
+frmgham_smoker %>%
+  pull(cigpday) %>%
+  summary()
+
+frmgham_smoker %>%
+ group_by(randid) %>%
+ mutate(mean.cigpday = mean(cigpday)) %>%
+ ungroup() %>%
+ select(randid, mean.cigpday) %>%
+ distinct() %>%
+ ggplot(aes(x = mean.cigpday)) +
+ geom_histogram(color="darkblue", fill="lightblue", aes(y=..density..)) +
+ labs(x = "Average number of cigarettes smoked per day",
+      y = "Density",
+      title = "cigpday summary")
+  
 ```
+
+We see that among smokers, average number of cigarettes smoked per day for the participants throughout the study is 19.25. According to the histogram, it is highly concentrated in the value 20.
+
+The relationship between number of cigarettes smoked per day and age seem to have a slight decreasing trend.
 
 ```{r finding counfounders for m2}
 # I will look into SYSBP DIABP TOTCHOL BMI DIABETES 
@@ -1212,17 +1232,11 @@ for (conf in pot_conf) {
 map(conf_det, knitr::kable, digits = 3)
 ```
 
-
-
 ```{r}
-frmgham %>% 
-  mutate(sex=ifelse(sex==1, "male","women")) %>% 
-  ggplot(., aes(x=age, y=cigpday)) +
-  geom_jitter() + 
-  geom_smooth(method = "loess") +
-  facet_grid(~sex)+
-  ggtitle("Relationship between the number of cigarettes smoked per day and age by gender")
+cigpday.lmer<- glmer(cigpday ~ age + totchol + (1 | randid), data = frmgham_smoker, family = poisson, nAGQ = 0)
+summary(cigpday.lmer)
 ```
+
 
 
 
