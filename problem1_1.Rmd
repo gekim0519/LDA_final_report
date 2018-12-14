@@ -15,6 +15,7 @@ library(janitor)
 library(mice)
 library(gee)
 
+
 frmgham = 
   read.csv2("frmgham2.csv", sep = ",", na.strings=c("","NA")) %>% 
   clean_names() %>% select(cursmoke, everything()) %>% 
@@ -139,6 +140,8 @@ for (conf in pot_conf) {
 map(conf_det, knitr::kable, digits = 3)
 ```
 
+
+
 ## Finding modifier
 
 ```{r}
@@ -148,10 +151,12 @@ frmgham %>%
   select(randid, cursmoke, age_ctg, sex) %>% 
   na.omit() %>% 
   group_by(age_ctg, sex) %>% 
-  summarise(p_cursmoke = sum(cursmoke)/n()) %>% 
-  ggplot(aes(x = age_ctg, y = p_cursmoke, color = sex, group = sex)) + 
+  summarise(p_cursmoke = sum(cursmoke)/n(),
+            lower_CI = prop.test(sum(cursmoke), n())$conf.int[1],
+            upper_CI = prop.test(sum(cursmoke), n())$conf.int[2]) %>%
+  ggplot(aes(x = age_ctg, y = p_cursmoke, color = sex, group = sex)) +
+  geom_errorbar(aes(ymin = lower_CI, ymax = upper_CI), width = .1) +
   geom_line() +
-  geom_point() +
   labs(title = "Relationship between categorized age and smoking status by sex",
        x = "Age",
        y = "Probability of current smoking")
@@ -212,28 +217,34 @@ frmgham %>%
        x = "Age",
        y = "Probability of current smoking")
 
-### by prevmi -- modified 
+### by prevmi -- not modified 
 
 frmgham %>% 
   select(randid, cursmoke, age_ctg, prevmi) %>% 
   na.omit() %>% 
   group_by(age_ctg, prevmi) %>% 
-  summarise(p_cursmoke = sum(cursmoke)/n()) %>% 
-  ggplot(aes(x = age_ctg, y = p_cursmoke, color = prevmi, group = prevmi)) + 
+  summarise(p_cursmoke = sum(cursmoke)/n(),
+            lower_CI = prop.test(sum(cursmoke), n())$conf.int[1],
+            upper_CI = prop.test(sum(cursmoke), n())$conf.int[2]) %>%
+  ggplot(aes(x = age_ctg, y = p_cursmoke, color = prevmi, group = prevmi)) +
+  geom_errorbar(aes(ymin = lower_CI, ymax = upper_CI), width = .1) +
   geom_line() +
   geom_point() +
   labs(title = "Relationship between categorized age and smoking status by sex",
        x = "Age",
        y = "Probability of current smoking")
 
-### by prevstrk -- slightly modified 
+### by prevstrk -- not modified 
 
 frmgham %>% 
   select(randid, cursmoke, age_ctg, prevstrk) %>% 
   na.omit() %>% 
   group_by(age_ctg, prevstrk) %>% 
-  summarise(p_cursmoke = sum(cursmoke)/n()) %>% 
-  ggplot(aes(x = age_ctg, y = p_cursmoke, color = prevstrk, group = prevstrk)) + 
+  summarise(p_cursmoke = sum(cursmoke)/n(),
+            lower_CI = prop.test(sum(cursmoke), n())$conf.int[1],
+            upper_CI = prop.test(sum(cursmoke), n())$conf.int[2]) %>%
+  ggplot(aes(x = age_ctg, y = p_cursmoke, color = prevstrk, group = prevstrk)) +
+  geom_errorbar(aes(ymin = lower_CI, ymax = upper_CI), width = .1) +
   geom_line() +
   geom_point() +
   labs(title = "Relationship between categorized age and smoking status by sex",
@@ -246,8 +257,11 @@ frmgham %>%
   select(randid, cursmoke, age_ctg, prevhyp) %>% 
   na.omit() %>% 
   group_by(age_ctg, prevhyp) %>% 
-  summarise(p_cursmoke = sum(cursmoke)/n()) %>% 
-  ggplot(aes(x = age_ctg, y = p_cursmoke, color = prevhyp, group = prevhyp)) + 
+  summarise(p_cursmoke = sum(cursmoke)/n(),
+            lower_CI = prop.test(sum(cursmoke), n())$conf.int[1],
+            upper_CI = prop.test(sum(cursmoke), n())$conf.int[2]) %>%
+  ggplot(aes(x = age_ctg, y = p_cursmoke, color = prevhyp, group = prevhyp)) +
+  geom_errorbar(aes(ymin = lower_CI, ymax = upper_CI), width = .1) + 
   geom_line() +
   geom_point() +
   labs(title = "Relationship between categorized age and smoking status by sex",
@@ -258,7 +272,7 @@ frmgham %>%
 ## Fit model using glmer
 ```{r}
 cursmoke_age <-
-  glmer(cursmoke ~ age + sex + educ + hdlc + ldlc + prevmi + prevstrk + prevhyp + (1|randid), 
+  glmer(cursmoke ~ age*sex + educ + hdlc + ldlc + age*prevhyp + (1|randid), 
         data = frmgham, family = binomial, nAGQ = 0)
 
 summary(cursmoke_age)
