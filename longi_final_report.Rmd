@@ -14,6 +14,7 @@ library(tidyverse)
 library(janitor)
 library(mice)
 library(gee)
+library(lme4)
 
 frmgham = 
   read.csv2("frmgham2.csv", sep = ",", na.strings=c("","NA")) %>% 
@@ -1329,13 +1330,8 @@ sysbp_prevhyp <-
       data = frmgham, 
       family = binomial)
 
-sysbp_hyperten <- 
-  glmer(cursmoke ~ sysbp_c + hyperten+ (1|randid), 
-      data = frmgham, 
-      family = binomial)
-
 tibble(
-    variable = c("diabp", "prevhyp", "hyperten"),
+    variable = c("diabp", "prevhyp"),
     OR = 
       exp(coef(summary(sysbp))[2,1]),
     lower_CI  = 
@@ -1344,17 +1340,18 @@ tibble(
       exp(coef(summary(sysbp))[2,1] + 1.96*(coef(summary(sysbp))[2,4])),
     conf_OR =
       c(exp(coef(summary(sysbp_diabp))[2,1]),
-        exp(coef(summary(sysbp_prevhyp))[2,1]),
-        exp(coef(summary(sysbp_hyperten))[2,1])),
+        exp(coef(summary(sysbp_prevhyp))[2,1])),
     confounder =
       if_else((conf_OR >= lower_CI & conf_OR <= upper_CI), FALSE, TRUE)
   )
 
-smoke_diabp = glmer(cursmoke ~ diabp_c + sysbp_c + prevhyp + hyperten+ (1|randid), 
+smoke_sysbp = glmer(cursmoke ~ sysbp_c +diabp_c+ prevhyp+(1|randid), 
       data = frmgham, 
       family = binomial,nAGQ = 0)
-summary(smoke_diabp)
+summary(smoke_sysbp)
 ```
+
+From the table above, we found "diabp" and "prevhyp" are confounders. After adding the confounders, the final model is shown above. For a one-unit increase in the systolic blood pressure, the expected change in log odds of smoking status is -0.025344, adjusting for diastolic blood pressure and prevalent hypertensive.
 
 (2)The relationship between current smoking status and diastolic blood pressure.
 ```{r}
@@ -1383,13 +1380,8 @@ diabp_prevhyp <-
       data = frmgham, 
       family = binomial)
 
-diabp_hyperten <- 
-  glmer(cursmoke ~ diabp_c + hyperten, 
-      data = frmgham, 
-      family = binomial)
-
 tibble(
-    variable = c("sysbp", "prevhyp", "hyperten"),
+    variable = c("sysbp", "prevhyp"),
     OR = 
       exp(coef(summary(diabp))[2,1]),
     lower_CI  = 
@@ -1398,22 +1390,21 @@ tibble(
       exp(coef(summary(diabp))[2,1] + 1.96*(coef(summary(diabp))[2,4])),
     conf_OR =
       c(exp(coef(summary(diabp_sysbp))[2,1]),
-        exp(coef(summary(diabp_prevhyp))[2,1]),
-        exp(coef(summary(diabp_hyperten))[2,1])),
+        exp(coef(summary(diabp_prevhyp))[2,1])),
     confounder =
       if_else((conf_OR >= lower_CI & conf_OR <= upper_CI), FALSE, TRUE)
   )
 
-smoke_diabp = glmer(cursmoke ~ diabp_c + sysbp_c + prevhyp + hyperten, 
+smoke_diabp = glmer(cursmoke ~ diabp_c + sysbp_c + prevhyp + (1|randid) , 
       data = frmgham, 
       family = binomial,nAGQ = 0)
 
 summary(smoke_diabp)
 
-#confounders: sysbp, prevhyp, hyperten
+#confounders: sysbp, prevhyp
 ```
 
-From the table above, we found "sysbp", "prevhyp" and "hyperten" are confounders. After adding the confounders, the final model is shown above. For a one-unit increase in the diastolic blood pressure, the expected change in log odds is 0.009, adjusting for systolic blood pressure, prevalent hypertensive and hypertensive.
+From the table above, we found "sysbp" and "prevhyp" are confounders. After adding the confounders, the final model is shown above. For a one-unit increase in the diastolic blood pressure, the expected change in log odds of smoking status is 0.031559, adjusting for systolic blood pressure and prevalent hypertensive.
 
 (3)The relationship between current smoking status and serum total cholesterol. Again, while answering these questions, please account for any confounders that you have evidence may impact these relationships. 
 
