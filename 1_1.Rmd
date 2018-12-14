@@ -93,13 +93,14 @@ frmgham %>%
 
 ## Finding confounders 
 ### age and cursmoke -- confounder: hdlc, ldlc
+
+
 ```{r}
 age <-
-  gee(cursmoke ~ age,
+  glmer(cursmoke ~ age + (1|randid),
       data = frmgham,
-      id = randid,
-      family = binomial,
-      corstr = ("unstructured"))
+      family = binomial, 
+      nAGQ = 0)
 
 pot_conf <- names(frmgham)[-c(1:3, 5)]
 pot_conf <-
@@ -112,23 +113,23 @@ names(conf_det) <- pot_conf
 
 for (conf in pot_conf) {
 
-  data <- cbind(frmgham[,c("cursmoke", "age")], frmgham[,conf])
-  try(fit_gee <- gee(cursmoke ~ .,
+  data <- cbind(frmgham[,c("cursmoke", "age", "randid")], frmgham[,conf])
+  formula <- paste("cursmoke","~","age + (1|randid) +", conf)
+  try(fit_glmer <- glmer(formula,
       data = data,
-      id = frmgham$randid,
       family = binomial,
-      corstr = ("unstructured")))
+      nAGQ = 0))
 
   result <- tibble(
     variable = c("age"),
     OR =
       exp(coef(summary(age))[2,1]),
-    lower_CI  =
-      exp(coef(summary(age))[2,1] - 1.96*(coef(summary(age))[2,4])),
+    lower_CI =
+      exp(coef(summary(age))[2,1] - 1.96*(coef(summary(age))[2,2])),
     upper_CI =
-      exp(coef(summary(age))[2,1] + 1.96*(coef(summary(age))[2,4])),
+      exp(coef(summary(age))[2,1] + 1.96*(coef(summary(age))[2,2])),
     potconf_OR =
-      exp(coef(summary(fit_gee))[2,1]),
+      exp(coef(summary(fit_glmer))[2,1]),
     confounder =
       if_else((potconf_OR >= lower_CI & potconf_OR <= upper_CI), FALSE, TRUE)
   )
@@ -138,6 +139,7 @@ for (conf in pot_conf) {
 
 map(conf_det, knitr::kable, digits = 3)
 ```
+
 
 
 
