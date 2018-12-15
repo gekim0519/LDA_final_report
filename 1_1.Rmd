@@ -1,0 +1,281 @@
+---
+title: "1_1"
+author: "Youn Kyeong Chang (uni# yc3242)"
+date: "December 14, 2018"
+output: html_document
+---
+##1. Target question:
+1) Is there a relationship between age and smoking status?  Does this relationship differ by sex? 
+
+```{r}
+knitr::opts_chunk$set(echo = FALSE)
+library(tidyverse)
+library(janitor)
+library(mice)
+library(gee)
+
+
+frmgham = 
+  read.csv2("frmgham2.csv", sep = ",", na.strings=c("","NA")) %>% 
+  clean_names() %>% select(cursmoke, everything()) %>% 
+  mutate(sex = as.factor(sex),
+         bpmeds = as.factor(bpmeds),
+         educ = as.factor(educ),
+         diabetes = as.factor(diabetes),
+         prevap = as.factor(prevap),
+         prevchd = as.factor(prevchd),
+         prevmi = as.factor(prevmi),
+         prevstrk = as.factor(prevstrk),
+         prevhyp = as.factor(prevhyp),
+         sysbp = as.numeric(levels(sysbp))[sysbp],
+         diabp = as.numeric(as.character(diabp)),
+         bmi = as.numeric(as.character(bmi))) %>% 
+  as.tibble()
+
+## created age category variable (age_ctg)
+frmgham =
+  frmgham %>% 
+  mutate(
+      age_ctg = case_when(
+      age < 35 ~ "35-",  
+      age %in% 35:44 ~ "35-44",
+      age %in% 45:54 ~ "45-54",
+      age %in% 55:64 ~ "55-64",
+      age %in% 65:74 ~ "65-74",
+      age >= 75 ~ "75+"
+    ),
+    age_ctg = fct_relevel(age_ctg, "35-")) 
+
+## created sysbp category variable (sysbp_ctg)
+### According to the new guideline from american heart association
+### https://www.ahajournals.org/doi/10.1161/HYP.0000000000000065
+frmgham =
+  frmgham %>% 
+  mutate(
+      sysbp_ctg = case_when(
+      sysbp < 120 ~ "normal",  
+      (sysbp >= 120 & sysbp < 130) ~ "elevated",
+      (sysbp >= 130 & sysbp < 140) ~ "stage1",
+      (sysbp >= 140 & sysbp <= 180) ~ "stage2",
+      sysbp > 180 ~ "crisis"
+    ),
+    sysbp_ctg = fct_relevel(sysbp_ctg, "normal")) 
+
+## created sysbp category variable (diabp_ctg)
+### According to the new guideline from american heart association
+### https://www.ahajournals.org/doi/10.1161/HYP.0000000000000065
+frmgham =
+  frmgham %>% 
+  mutate(
+      diabp_ctg = case_when(
+      diabp < 80 ~ "normal and elevated",  
+      (diabp >= 80 & diabp < 90) ~ "stage1",
+      (diabp >= 90 & diabp <= 120 ) ~ "stage2",
+      diabp > 120 ~ "crisis"
+      ),
+    diabp_ctg = fct_relevel(diabp_ctg, "normal and elevated")) 
+```
+
+### cursmoke vs age_ctg without adjustment
+```{r}
+### cursmoke vs age_ctg : associated without adjustment 
+frmgham %>% 
+  select(randid, cursmoke, age_ctg) %>% 
+  na.omit() %>% 
+  group_by(age_ctg) %>% 
+  summarise(p_cursmoke = sum(cursmoke)/n()) %>% 
+  ggplot(aes(x = age_ctg, y = p_cursmoke)) + 
+  geom_bar(stat = "identity") +
+  labs(title = "Relationship between categorized age and smoking status",
+       x = "Age",
+       y = "Probability of current smoking")
+```
+
+## Finding confounders 
+### age and cursmoke -- confounder: hdlc, ldlc
+
+
+```{r}
+age <-
+  glmer(cursmoke ~ age + (1|randid),
+      data = frmgham,
+      family = binomial, 
+      nAGQ = 0)
+
+pot_conf <- names(frmgham)[-c(1:3, 5)]
+pot_conf <-
+  pot_conf[-c(grep("time", pot_conf))]
+
+conf_det <- vector("list", length = length(pot_conf))
+names(conf_det) <- pot_conf
+
+
+
+for (conf in pot_conf) {
+
+  data <- cbind(frmgham[,c("cursmoke", "age", "randid")], frmgham[,conf])
+  formula <- paste("cursmoke","~","age + (1|randid) +", conf)
+  try(fit_glmer <- glmer(formula,
+      data = data,
+      family = binomial,
+      nAGQ = 0))
+
+  result <- tibble(
+    variable = c("age"),
+    OR =
+      exp(coef(summary(age))[2,1]),
+    lower_CI =
+      exp(coef(summary(age))[2,1] - 1.96*(coef(summary(age))[2,2])),
+    upper_CI =
+      exp(coef(summary(age))[2,1] + 1.96*(coef(summary(age))[2,2])),
+    potconf_OR =
+      exp(coef(summary(fit_glmer))[2,1]),
+    confounder =
+      if_else((potconf_OR >= lower_CI & potconf_OR <= upper_CI), FALSE, TRUE)
+  )
+
+  conf_det[[conf]] <- result
+}
+
+map(conf_det, knitr::kable, digits = 3)
+```
+
+
+
+
+## Finding modifier
+
+```{r}
+### by sex -- modified!
+frmgham %>% 
+  mutate(sex = ifelse(sex == 1, "male", "women")) %>%
+  select(randid, cursmoke, age_ctg, sex) %>% 
+  na.omit() %>% 
+  group_by(age_ctg, sex) %>% 
+  summarise(p_cursmoke = sum(cursmoke)/n(),
+            lower_CI = prop.test(sum(cursmoke), n())$conf.int[1],
+            upper_CI = prop.test(sum(cursmoke), n())$conf.int[2]) %>%
+  ggplot(aes(x = age_ctg, y = p_cursmoke, color = sex, group = sex)) +
+  geom_errorbar(aes(ymin = lower_CI, ymax = upper_CI), width = .1) +
+  geom_line() +
+  labs(title = "Relationship between categorized age and smoking status by sex",
+       x = "Age",
+       y = "Probability of current smoking")
+
+
+### by educ -- not modified except 35-
+
+frmgham %>% 
+  select(randid, cursmoke, age_ctg, educ) %>% 
+  na.omit() %>% 
+  group_by(age_ctg, educ) %>% 
+  summarise(p_cursmoke = sum(cursmoke)/n()) %>% 
+  ggplot(aes(x = age_ctg, y = p_cursmoke, color = educ, group = educ)) + 
+  geom_line() +
+  geom_point() +
+  labs(title = "Relationship between categorized age and smoking status by sex",
+       x = "Age",
+       y = "Probability of current smoking")
+
+### by diabetes -- not modified 
+
+frmgham %>% 
+  select(randid, cursmoke, age_ctg, diabetes) %>% 
+  na.omit() %>% 
+  group_by(age_ctg, diabetes) %>% 
+  summarise(p_cursmoke = sum(cursmoke)/n()) %>% 
+  ggplot(aes(x = age_ctg, y = p_cursmoke, color = diabetes, group = diabetes)) + 
+  geom_line() +
+  geom_point() +
+  labs(title = "Relationship between categorized age and smoking status by sex",
+       x = "Age",
+       y = "Probability of current smoking")
+
+### by prevap -- not modified 
+
+frmgham %>% 
+  select(randid, cursmoke, age_ctg, prevap) %>% 
+  na.omit() %>% 
+  group_by(age_ctg, prevap) %>% 
+  summarise(p_cursmoke = sum(cursmoke)/n()) %>% 
+  ggplot(aes(x = age_ctg, y = p_cursmoke, color = prevap, group = prevap)) + 
+  geom_line() +
+  geom_point() +
+  labs(title = "Relationship between categorized age and smoking status by sex",
+       x = "Age",
+       y = "Probability of current smoking")
+
+### by prevchd -- not modified 
+
+frmgham %>% 
+  select(randid, cursmoke, age_ctg, prevchd) %>% 
+  na.omit() %>% 
+  group_by(age_ctg, prevchd) %>% 
+  summarise(p_cursmoke = sum(cursmoke)/n()) %>% 
+  ggplot(aes(x = age_ctg, y = p_cursmoke, color = prevchd, group = prevchd)) + 
+  geom_line() +
+  geom_point() +
+  labs(title = "Relationship between categorized age and smoking status by sex",
+       x = "Age",
+       y = "Probability of current smoking")
+
+### by prevmi -- not modified 
+
+frmgham %>% 
+  select(randid, cursmoke, age_ctg, prevmi) %>% 
+  na.omit() %>% 
+  group_by(age_ctg, prevmi) %>% 
+  summarise(p_cursmoke = sum(cursmoke)/n(),
+            lower_CI = prop.test(sum(cursmoke), n())$conf.int[1],
+            upper_CI = prop.test(sum(cursmoke), n())$conf.int[2]) %>%
+  ggplot(aes(x = age_ctg, y = p_cursmoke, color = prevmi, group = prevmi)) +
+  geom_errorbar(aes(ymin = lower_CI, ymax = upper_CI), width = .1) +
+  geom_line() +
+  geom_point() +
+  labs(title = "Relationship between categorized age and smoking status by sex",
+       x = "Age",
+       y = "Probability of current smoking")
+
+### by prevstrk -- not modified 
+
+frmgham %>% 
+  select(randid, cursmoke, age_ctg, prevstrk) %>% 
+  na.omit() %>% 
+  group_by(age_ctg, prevstrk) %>% 
+  summarise(p_cursmoke = sum(cursmoke)/n(),
+            lower_CI = prop.test(sum(cursmoke), n())$conf.int[1],
+            upper_CI = prop.test(sum(cursmoke), n())$conf.int[2]) %>%
+  ggplot(aes(x = age_ctg, y = p_cursmoke, color = prevstrk, group = prevstrk)) +
+  geom_errorbar(aes(ymin = lower_CI, ymax = upper_CI), width = .1) +
+  geom_line() +
+  geom_point() +
+  labs(title = "Relationship between categorized age and smoking status by sex",
+       x = "Age",
+       y = "Probability of current smoking")
+
+### by prevhyp -- slightly modified 
+
+frmgham %>% 
+  select(randid, cursmoke, age_ctg, prevhyp) %>% 
+  na.omit() %>% 
+  group_by(age_ctg, prevhyp) %>% 
+  summarise(p_cursmoke = sum(cursmoke)/n(),
+            lower_CI = prop.test(sum(cursmoke), n())$conf.int[1],
+            upper_CI = prop.test(sum(cursmoke), n())$conf.int[2]) %>%
+  ggplot(aes(x = age_ctg, y = p_cursmoke, color = prevhyp, group = prevhyp)) +
+  geom_errorbar(aes(ymin = lower_CI, ymax = upper_CI), width = .1) + 
+  geom_line() +
+  geom_point() +
+  labs(title = "Relationship between categorized age and smoking status by sex",
+       x = "Age",
+       y = "Probability of current smoking")
+```
+
+## Fit model using glmer
+```{r}
+cursmoke_age <-
+  glmer(cursmoke ~ age*sex + educ + hdlc + ldlc + age*prevhyp + (1|randid), 
+        data = frmgham, family = binomial, nAGQ = 0)
+
+summary(cursmoke_age)
+```
