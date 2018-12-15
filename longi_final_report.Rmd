@@ -2,7 +2,7 @@
 title: "logitudinal_final_proj"
 author: "Lynette Pan"
 date: "12/3/2018"
-output: pdf_document
+output: github_document
 ---
 
 #Final Project: Smoking in the Framingham Heart Study
@@ -149,8 +149,78 @@ load("frmgham_complete.RData")
 ##1. Target question:
 1) Is there a relationship between age and smoking status?  Does this relationship differ by sex? 
 
-### cursmoke vs age_ctg 
 ```{r}
+knitr::opts_chunk$set(echo = FALSE)
+library(tidyverse)
+library(janitor)
+library(mice)
+library(gee)
+
+
+frmgham = 
+  read.csv2("frmgham2.csv", sep = ",", na.strings=c("","NA")) %>% 
+  clean_names() %>% select(cursmoke, everything()) %>% 
+  mutate(sex = as.factor(sex),
+         bpmeds = as.factor(bpmeds),
+         educ = as.factor(educ),
+         diabetes = as.factor(diabetes),
+         prevap = as.factor(prevap),
+         prevchd = as.factor(prevchd),
+         prevmi = as.factor(prevmi),
+         prevstrk = as.factor(prevstrk),
+         prevhyp = as.factor(prevhyp),
+         sysbp = as.numeric(levels(sysbp))[sysbp],
+         diabp = as.numeric(as.character(diabp)),
+         bmi = as.numeric(as.character(bmi))) %>% 
+  as.tibble()
+
+## created age category variable (age_ctg)
+frmgham =
+  frmgham %>% 
+  mutate(
+      age_ctg = case_when(
+      age < 35 ~ "35-",  
+      age %in% 35:44 ~ "35-44",
+      age %in% 45:54 ~ "45-54",
+      age %in% 55:64 ~ "55-64",
+      age %in% 65:74 ~ "65-74",
+      age >= 75 ~ "75+"
+    ),
+    age_ctg = fct_relevel(age_ctg, "35-")) 
+
+## created sysbp category variable (sysbp_ctg)
+### According to the new guideline from american heart association
+### https://www.ahajournals.org/doi/10.1161/HYP.0000000000000065
+frmgham =
+  frmgham %>% 
+  mutate(
+      sysbp_ctg = case_when(
+      sysbp < 120 ~ "normal",  
+      (sysbp >= 120 & sysbp < 130) ~ "elevated",
+      (sysbp >= 130 & sysbp < 140) ~ "stage1",
+      (sysbp >= 140 & sysbp <= 180) ~ "stage2",
+      sysbp > 180 ~ "crisis"
+    ),
+    sysbp_ctg = fct_relevel(sysbp_ctg, "normal")) 
+
+## created sysbp category variable (diabp_ctg)
+### According to the new guideline from american heart association
+### https://www.ahajournals.org/doi/10.1161/HYP.0000000000000065
+frmgham =
+  frmgham %>% 
+  mutate(
+      diabp_ctg = case_when(
+      diabp < 80 ~ "normal and elevated",  
+      (diabp >= 80 & diabp < 90) ~ "stage1",
+      (diabp >= 90 & diabp <= 120 ) ~ "stage2",
+      diabp > 120 ~ "crisis"
+      ),
+    diabp_ctg = fct_relevel(diabp_ctg, "normal and elevated")) 
+```
+
+### cursmoke vs age_ctg without adjustment
+```{r}
+### cursmoke vs age_ctg : associated without adjustment 
 frmgham %>% 
   select(randid, cursmoke, age_ctg) %>% 
   na.omit() %>% 
@@ -163,15 +233,179 @@ frmgham %>%
        y = "Probability of current smoking")
 ```
 
-### cursmoke vs age_ctg by sex 
+## Finding confounders 
+### age and cursmoke -- confounder: hdlc, ldlc
+
+
 ```{r}
+age <-
+  glmer(cursmoke ~ age + (1|randid),
+      data = frmgham,
+      family = binomial, 
+      nAGQ = 0)
+
+pot_conf <- names(frmgham)[-c(1:3, 5)]
+pot_conf <-
+  pot_conf[-c(grep("time", pot_conf))]
+
+conf_det <- vector("list", length = length(pot_conf))
+names(conf_det) <- pot_conf
+
+
+
+for (conf in pot_conf) {
+
+  data <- cbind(frmgham[,c("cursmoke", "age", "randid")], frmgham[,conf])
+  formula <- paste("cursmoke","~","age + (1|randid) +", conf)
+  try(fit_glmer <- glmer(formula,
+      data = data,
+      family = binomial,
+      nAGQ = 0))
+
+  result <- tibble(
+    variable = c("age"),
+    OR =
+      exp(coef(summary(age))[2,1]),
+    lower_CI =
+      exp(coef(summary(age))[2,1] - 1.96*(coef(summary(age))[2,2])),
+    upper_CI =
+      exp(coef(summary(age))[2,1] + 1.96*(coef(summary(age))[2,2])),
+    potconf_OR =
+      exp(coef(summary(fit_glmer))[2,1]),
+    confounder =
+      if_else((potconf_OR >= lower_CI & potconf_OR <= upper_CI), FALSE, TRUE)
+  )
+
+  conf_det[[conf]] <- result
+}
+
+map(conf_det, knitr::kable, digits = 3)
+```
+
+
+
+
+## Finding modifier
+
+```{r}
+### by sex -- modified!
 frmgham %>% 
   mutate(sex = ifelse(sex == 1, "male", "women")) %>%
   select(randid, cursmoke, age_ctg, sex) %>% 
   na.omit() %>% 
   group_by(age_ctg, sex) %>% 
+  summarise(p_cursmoke = sum(cursmoke)/n(),
+            lower_CI = prop.test(sum(cursmoke), n())$conf.int[1],
+            upper_CI = prop.test(sum(cursmoke), n())$conf.int[2]) %>%
+  ggplot(aes(x = age_ctg, y = p_cursmoke, color = sex, group = sex)) +
+  geom_errorbar(aes(ymin = lower_CI, ymax = upper_CI), width = .1) +
+  geom_line() +
+  labs(title = "Relationship between categorized age and smoking status by sex",
+       x = "Age",
+       y = "Probability of current smoking")
+
+
+### by educ -- not modified except 35-
+
+frmgham %>% 
+  select(randid, cursmoke, age_ctg, educ) %>% 
+  na.omit() %>% 
+  group_by(age_ctg, educ) %>% 
   summarise(p_cursmoke = sum(cursmoke)/n()) %>% 
-  ggplot(aes(x = age_ctg, y = p_cursmoke, color = sex, group = sex)) + 
+  ggplot(aes(x = age_ctg, y = p_cursmoke, color = educ, group = educ)) + 
+  geom_line() +
+  geom_point() +
+  labs(title = "Relationship between categorized age and smoking status by sex",
+       x = "Age",
+       y = "Probability of current smoking")
+
+### by diabetes -- not modified 
+
+frmgham %>% 
+  select(randid, cursmoke, age_ctg, diabetes) %>% 
+  na.omit() %>% 
+  group_by(age_ctg, diabetes) %>% 
+  summarise(p_cursmoke = sum(cursmoke)/n()) %>% 
+  ggplot(aes(x = age_ctg, y = p_cursmoke, color = diabetes, group = diabetes)) + 
+  geom_line() +
+  geom_point() +
+  labs(title = "Relationship between categorized age and smoking status by sex",
+       x = "Age",
+       y = "Probability of current smoking")
+
+### by prevap -- not modified 
+
+frmgham %>% 
+  select(randid, cursmoke, age_ctg, prevap) %>% 
+  na.omit() %>% 
+  group_by(age_ctg, prevap) %>% 
+  summarise(p_cursmoke = sum(cursmoke)/n()) %>% 
+  ggplot(aes(x = age_ctg, y = p_cursmoke, color = prevap, group = prevap)) + 
+  geom_line() +
+  geom_point() +
+  labs(title = "Relationship between categorized age and smoking status by sex",
+       x = "Age",
+       y = "Probability of current smoking")
+
+### by prevchd -- not modified 
+
+frmgham %>% 
+  select(randid, cursmoke, age_ctg, prevchd) %>% 
+  na.omit() %>% 
+  group_by(age_ctg, prevchd) %>% 
+  summarise(p_cursmoke = sum(cursmoke)/n()) %>% 
+  ggplot(aes(x = age_ctg, y = p_cursmoke, color = prevchd, group = prevchd)) + 
+  geom_line() +
+  geom_point() +
+  labs(title = "Relationship between categorized age and smoking status by sex",
+       x = "Age",
+       y = "Probability of current smoking")
+
+### by prevmi -- not modified 
+
+frmgham %>% 
+  select(randid, cursmoke, age_ctg, prevmi) %>% 
+  na.omit() %>% 
+  group_by(age_ctg, prevmi) %>% 
+  summarise(p_cursmoke = sum(cursmoke)/n(),
+            lower_CI = prop.test(sum(cursmoke), n())$conf.int[1],
+            upper_CI = prop.test(sum(cursmoke), n())$conf.int[2]) %>%
+  ggplot(aes(x = age_ctg, y = p_cursmoke, color = prevmi, group = prevmi)) +
+  geom_errorbar(aes(ymin = lower_CI, ymax = upper_CI), width = .1) +
+  geom_line() +
+  geom_point() +
+  labs(title = "Relationship between categorized age and smoking status by sex",
+       x = "Age",
+       y = "Probability of current smoking")
+
+### by prevstrk -- not modified 
+
+frmgham %>% 
+  select(randid, cursmoke, age_ctg, prevstrk) %>% 
+  na.omit() %>% 
+  group_by(age_ctg, prevstrk) %>% 
+  summarise(p_cursmoke = sum(cursmoke)/n(),
+            lower_CI = prop.test(sum(cursmoke), n())$conf.int[1],
+            upper_CI = prop.test(sum(cursmoke), n())$conf.int[2]) %>%
+  ggplot(aes(x = age_ctg, y = p_cursmoke, color = prevstrk, group = prevstrk)) +
+  geom_errorbar(aes(ymin = lower_CI, ymax = upper_CI), width = .1) +
+  geom_line() +
+  geom_point() +
+  labs(title = "Relationship between categorized age and smoking status by sex",
+       x = "Age",
+       y = "Probability of current smoking")
+
+### by prevhyp -- slightly modified 
+
+frmgham %>% 
+  select(randid, cursmoke, age_ctg, prevhyp) %>% 
+  na.omit() %>% 
+  group_by(age_ctg, prevhyp) %>% 
+  summarise(p_cursmoke = sum(cursmoke)/n(),
+            lower_CI = prop.test(sum(cursmoke), n())$conf.int[1],
+            upper_CI = prop.test(sum(cursmoke), n())$conf.int[2]) %>%
+  ggplot(aes(x = age_ctg, y = p_cursmoke, color = prevhyp, group = prevhyp)) +
+  geom_errorbar(aes(ymin = lower_CI, ymax = upper_CI), width = .1) + 
   geom_line() +
   geom_point() +
   labs(title = "Relationship between categorized age and smoking status by sex",
@@ -179,979 +413,14 @@ frmgham %>%
        y = "Probability of current smoking")
 ```
 
-
-### See random effects 
-
-
-## Finding confounders
-### age and cursmoke -- confounder: hdlc, ldlc
-```{r}
-age <- 
-  gee(cursmoke ~ age, 
-      data = frmgham, 
-      id = randid, 
-      family = binomial,
-      corstr = ("unstructured"))
-
-####sysbp
-```{r}
-sex_sysbp <- 
-  gee(cursmoke ~ sex + sysbp, 
-      data = frmgham, 
-      id = randid, 
-      family = binomial,
-      corstr = ("unstructured"))
-
-tibble(
-    variable = c("sex2"),
-    OR = 
-      exp(coef(summary(sex))[2,1]),
-    lower_CI  = 
-      exp(coef(summary(sex))[2,1] - 1.96*(coef(summary(sex))[2,4])),
-    upper_CI = 
-      exp(coef(summary(sex))[2,1] + 1.96*(coef(summary(sex))[2,4])),
-    sysbp_OR =
-      exp(coef(summary(sex_sysbp))[2,1]),
-    confounder =
-      if_else((sysbp_OR >= lower_CI & sysbp_OR <= upper_CI), FALSE, TRUE)
-  ) %>% 
-  knitr::kable(digits = 3)
-```
-sysbp_ctg is not a confounder since inferences for odds ratios of current smoking by sex was not changed by sysbp_ctg at the significance level 0.05.  
-
-####diabp
-```{r}
-sex_diabp <- 
-  gee(cursmoke ~ sex + diabp, 
-      data = frmgham, 
-      id = randid, 
-      family = binomial,
-      corstr = ("unstructured"))
-
-tibble(
-    variable = c("sex2"),
-    OR = 
-      exp(coef(summary(sex))[2,1]),
-    lower_CI  = 
-      exp(coef(summary(sex))[2,1] - 1.96*(coef(summary(sex))[2,4])),
-    upper_CI = 
-      exp(coef(summary(sex))[2,1] + 1.96*(coef(summary(sex))[2,4])),
-    diabp_OR =
-      exp(coef(summary(sex_diabp))[2,1]),
-    confounder =
-      if_else((diabp_OR >= lower_CI & diabp_OR <= upper_CI), FALSE, TRUE)
-  ) %>% 
-  knitr::kable(digits = 3)
-```
-diabp is not a confounder since inferences for odds ratios of current smoking by sex was not changed by diabp at the significance level 0.05.
-
-
-####bpmeds
-```{r}
-sex_bpmeds <- 
-  gee(cursmoke ~ sex + bpmeds, 
-      data = frmgham, 
-      id = randid, 
-      family = binomial,
-      corstr = ("unstructured"))
-
-tibble(
-    variable = c("sex2"),
-    OR = 
-      exp(coef(summary(sex))[2,1]),
-    lower_CI  = 
-      exp(coef(summary(sex))[2,1] - 1.96*(coef(summary(sex))[2,4])),
-    upper_CI = 
-      exp(coef(summary(sex))[2,1] + 1.96*(coef(summary(sex))[2,4])),
-    bpmeds_OR =
-      exp(coef(summary(sex_bpmeds))[2,1]),
-    confounder =
-      if_else((bpmeds_OR >= lower_CI & bpmeds_OR <= upper_CI), FALSE, TRUE)
-  ) %>% 
-  knitr::kable(digits = 3)
-```
-bpmeds is not a confounder since inferences for odds ratios of current smoking by sex was not changed by bpmeds at the significance level 0.05.
-
-####educ
-```{r}
-sex_educ <- 
-  gee(cursmoke ~ sex + educ, 
-      data = frmgham, 
-      id = randid, 
-      family = binomial,
-      corstr = ("unstructured"))
-
-tibble(
-    variable = c("sex2"),
-    OR = 
-      exp(coef(summary(sex))[2,1]),
-    lower_CI  = 
-      exp(coef(summary(sex))[2,1] - 1.96*(coef(summary(sex))[2,4])),
-    upper_CI = 
-      exp(coef(summary(sex))[2,1] + 1.96*(coef(summary(sex))[2,4])),
-    educ_OR =
-      exp(coef(summary(sex_educ))[2,1]),
-    confounder =
-      if_else((educ_OR >= lower_CI & educ_OR <= upper_CI), FALSE, TRUE)
-  ) %>% 
-  knitr::kable(digits = 3)
-```
-educ is not a confounder since inferences for odds ratios of current smoking by sex was not changed by educ at the significance level 0.05.
-
-
-####totchol
-```{r}
-sex_totchol <- 
-  gee(cursmoke ~ sex + totchol, 
-      data = frmgham, 
-      id = randid, 
-      family = binomial,
-      corstr = ("unstructured"))
-
-tibble(
-    variable = c("sex2"),
-    OR = 
-      exp(coef(summary(sex))[2,1]),
-    lower_CI  = 
-      exp(coef(summary(sex))[2,1] - 1.96*(coef(summary(sex))[2,4])),
-    upper_CI = 
-      exp(coef(summary(sex))[2,1] + 1.96*(coef(summary(sex))[2,4])),
-    totchol_OR =
-      exp(coef(summary(sex_totchol))[2,1]),
-    confounder =
-      if_else((totchol_OR >= lower_CI & totchol_OR <= upper_CI), FALSE, TRUE)
-  ) %>% 
-  knitr::kable(digits = 3)
-```
-totchol is not a confounder since inferences for odds ratios of current smoking by sex was not changed by totchol at the significance level 0.05.
-
-####hdlc #### confounder
-```{r}
-sex_hdlc <- 
-  gee(cursmoke ~ sex + hdlc, 
-      data = frmgham, 
-      id = randid, 
-      family = binomial,
-      corstr = ("unstructured"))
-
-tibble(
-    variable = c("sex2"),
-    OR = 
-      exp(coef(summary(sex))[2,1]),
-    lower_CI  = 
-      exp(coef(summary(sex))[2,1] - 1.96*(coef(summary(sex))[2,4])),
-    upper_CI = 
-      exp(coef(summary(sex))[2,1] + 1.96*(coef(summary(sex))[2,4])),
-    hdlc_OR =
-      exp(coef(summary(sex_hdlc))[2,1]),
-    confounder =
-      if_else((hdlc_OR >= lower_CI & hdlc_OR <= upper_CI), FALSE, TRUE)
-  ) %>% 
-  knitr::kable(digits = 3)
-```
-hdlc is a confounder since inferences for odds ratios of current smoking by sex was changed by hdlc at the significance level 0.05.
-
-####ldlc #### confounder
-```{r}
-sex_ldlc <- 
-  gee(cursmoke ~ sex + ldlc, 
-      data = frmgham, 
-      id = randid, 
-      family = binomial,
-      corstr = ("unstructured"))
-
-tibble(
-    variable = c("sex2"),
-    OR = 
-      exp(coef(summary(sex))[2,1]),
-    lower_CI  = 
-      exp(coef(summary(sex))[2,1] - 1.96*(coef(summary(sex))[2,4])),
-    upper_CI = 
-      exp(coef(summary(sex))[2,1] + 1.96*(coef(summary(sex))[2,4])),
-    ldlc_OR =
-      exp(coef(summary(sex_ldlc))[2,1]),
-    confounder =
-      if_else((ldlc_OR >= lower_CI & ldlc_OR <= upper_CI), FALSE, TRUE)
-  ) %>% 
-  knitr::kable(digits = 3)
-```
-ldlc is a confounder since inferences for odds ratios of current smoking by sex was changed by ldlc at the significance level 0.05.
-
-
-####bmi
-```{r}
-ggplot(frmgham, aes(x = bmi, y = cursmoke)) + 
-  geom_jitter(height = 0.2, width = 3) +
-  geom_smooth()
-
-ggplot(frmgham, aes(x = sex, y = bmi)) + 
-  geom_violin() +
-  geom_smooth()
-```
-Since there is no difference in bmi by sex, bmi is not likely to be a confounder.
-
-####glucose
-```{r}
-sex_glucose <- 
-  gee(cursmoke ~ sex + glucose, 
-      data = frmgham, 
-      id = randid, 
-      family = binomial,
-      corstr = ("unstructured"))
-
-tibble(
-    variable = c("sex2"),
-    OR = 
-      exp(coef(summary(sex))[2,1]),
-    lower_CI  = 
-      exp(coef(summary(sex))[2,1] - 1.96*(coef(summary(sex))[2,4])),
-    upper_CI = 
-      exp(coef(summary(sex))[2,1] + 1.96*(coef(summary(sex))[2,4])),
-    glucose_OR =
-      exp(coef(summary(sex_glucose))[2,1]),
-    confounder =
-      if_else((glucose_OR >= lower_CI & glucose_OR <= upper_CI), FALSE, TRUE)
-  ) %>% 
-  knitr::kable(digits = 3)
-```
-glucose is not a confounder since inferences for odds ratios of current smoking by sex was not changed by glucose at the significance level 0.05.
-
-
-####diabetes
-```{r}
-sex_diabetes <- 
-  gee(cursmoke ~ sex + diabetes, 
-      data = frmgham, 
-      id = randid, 
-      family = binomial,
-      corstr = ("unstructured"))
-
-tibble(
-    variable = c("sex2"),
-    OR = 
-      exp(coef(summary(sex))[2,1]),
-    lower_CI  = 
-      exp(coef(summary(sex))[2,1] - 1.96*(coef(summary(sex))[2,4])),
-    upper_CI = 
-      exp(coef(summary(sex))[2,1] + 1.96*(coef(summary(sex))[2,4])),
-    diabetes_OR =
-      exp(coef(summary(sex_diabetes))[2,1]),
-    confounder =
-      if_else((diabetes_OR >= lower_CI & diabetes_OR <= upper_CI), FALSE, TRUE)
-  ) %>% 
-  knitr::kable(digits = 3)
-```
-diabetes is not a confounder since inferences for odds ratios of current smoking by sex was not changed by diabetes at the significance level 0.05.
-
-
-####heartrte
-```{r}
-sex_heartrte <- 
-  gee(cursmoke ~ sex + heartrte, 
-      data = frmgham, 
-      id = randid, 
-      family = binomial,
-      corstr = ("unstructured"))
-
-tibble(
-    variable = c("sex2"),
-    OR = 
-      exp(coef(summary(sex))[2,1]),
-    lower_CI  = 
-      exp(coef(summary(sex))[2,1] - 1.96*(coef(summary(sex))[2,4])),
-    upper_CI = 
-      exp(coef(summary(sex))[2,1] + 1.96*(coef(summary(sex))[2,4])),
-    heartrte_OR =
-      exp(coef(summary(sex_heartrte))[2,1]),
-    confounder =
-      if_else((heartrte_OR >= lower_CI & heartrte_OR <= upper_CI), FALSE, TRUE)
-  ) %>% 
-  knitr::kable(digits = 3)
-```
-heartrte is not a confounder since inferences for odds ratios of current smoking by sex was not changed by heartrte at the significance level 0.05.
-
-
-####prevap
-```{r}
-sex_prevap <- 
-  gee(cursmoke ~ sex + prevap, 
-      data = frmgham, 
-      id = randid, 
-      family = binomial,
-      corstr = ("unstructured"))
-
-tibble(
-    variable = c("sex2"),
-    OR = 
-      exp(coef(summary(sex))[2,1]),
-    lower_CI  = 
-      exp(coef(summary(sex))[2,1] - 1.96*(coef(summary(sex))[2,4])),
-    upper_CI = 
-      exp(coef(summary(sex))[2,1] + 1.96*(coef(summary(sex))[2,4])),
-    prevap_OR =
-      exp(coef(summary(sex_prevap))[2,1]),
-    confounder =
-      if_else((prevap_OR >= lower_CI & prevap_OR <= upper_CI), FALSE, TRUE)
-  ) %>% 
-  knitr::kable(digits = 3)
-```
-prevap is not a confounder since inferences for odds ratios of current smoking by sex was not changed by prevap at the significance level 0.05.
-
-####prevchd
-```{r}
-sex_prevchd <- 
-  gee(cursmoke ~ sex + prevchd, 
-      data = frmgham, 
-      id = randid, 
-      family = binomial,
-      corstr = ("unstructured"))
-
-tibble(
-    variable = c("sex2"),
-    OR = 
-      exp(coef(summary(sex))[2,1]),
-    lower_CI  = 
-      exp(coef(summary(sex))[2,1] - 1.96*(coef(summary(sex))[2,4])),
-    upper_CI = 
-      exp(coef(summary(sex))[2,1] + 1.96*(coef(summary(sex))[2,4])),
-    prevchd_OR =
-      exp(coef(summary(sex_prevchd))[2,1]),
-    confounder =
-      if_else((prevchd_OR >= lower_CI & prevchd_OR <= upper_CI), FALSE, TRUE)
-  ) %>% 
-  knitr::kable(digits = 3)
-```
-prevchd is not a confounder since inferences for odds ratios of current smoking by sex was not changed by prevchd at the significance level 0.05.
-
-####prevmi
-```{r}
-sex_prevmi <- 
-  gee(cursmoke ~ sex + prevmi, 
-      data = frmgham, 
-      id = randid, 
-      family = binomial,
-      corstr = ("unstructured"))
-
-tibble(
-    variable = c("sex2"),
-    OR = 
-      exp(coef(summary(sex))[2,1]),
-    lower_CI  = 
-      exp(coef(summary(sex))[2,1] - 1.96*(coef(summary(sex))[2,4])),
-    upper_CI = 
-      exp(coef(summary(sex))[2,1] + 1.96*(coef(summary(sex))[2,4])),
-    prevmi_OR =
-      exp(coef(summary(sex_prevmi))[2,1]),
-    confounder =
-      if_else((prevmi_OR >= lower_CI & prevmi_OR <= upper_CI), FALSE, TRUE)
-  ) %>% 
-  knitr::kable(digits = 3)
-```
-prevmi is not a confounder since inferences for odds ratios of current smoking by sex was not changed by prevmi at the significance level 0.05.
-
-####prevstrk
-```{r}
-sex_prevstrk <- 
-  gee(cursmoke ~ sex + prevstrk, 
-      data = frmgham, 
-      id = randid, 
-      family = binomial,
-      corstr = ("unstructured"))
-
-tibble(
-    variable = c("sex2"),
-    OR = 
-      exp(coef(summary(sex))[2,1]),
-    lower_CI  = 
-      exp(coef(summary(sex))[2,1] - 1.96*(coef(summary(sex))[2,4])),
-    upper_CI = 
-      exp(coef(summary(sex))[2,1] + 1.96*(coef(summary(sex))[2,4])),
-    prevstrk_OR =
-      exp(coef(summary(sex_prevstrk))[2,1]),
-    confounder =
-      if_else((prevstrk_OR >= lower_CI & prevstrk_OR <= upper_CI), FALSE, TRUE)
-  ) %>% 
-  knitr::kable(digits = 3)
-```
-prevstrk is not a confounder since inferences for odds ratios of current smoking by sex was not changed by prevstrk at the significance level 0.05.
-
-####prevhyp 
-```{r}
-sex_prevhyp <- 
-  gee(cursmoke ~ sex + prevhyp, 
-      data = frmgham, 
-      id = randid, 
-      family = binomial,
-      corstr = ("unstructured"))
-
-tibble(
-    variable = c("sex2"),
-    OR = 
-      exp(coef(summary(sex))[2,1]),
-    lower_CI  = 
-      exp(coef(summary(sex))[2,1] - 1.96*(coef(summary(sex))[2,4])),
-    upper_CI = 
-      exp(coef(summary(sex))[2,1] + 1.96*(coef(summary(sex))[2,4])),
-    prevhyp_OR =
-      exp(coef(summary(sex_prevhyp))[2,1]),
-    confounder =
-      if_else((prevhyp_OR >= lower_CI & prevhyp_OR <= upper_CI), FALSE, TRUE)
-  ) %>% 
-  knitr::kable(digits = 3)
-```
-prevhyp is not a confounder since inferences for odds ratios of current smoking by sex was not changed by prevhyp at the significance level 0.05.
-
-
-
-### age and cursmoke -- confounder: hdlc, ldlc
-```{r}
-age <- 
-  gee(cursmoke ~ age, 
-      data = frmgham, 
-      id = randid, 
-      family = binomial,
-      corstr = ("unstructured"))
-```
-
-####sysbp
-```{r}
-age_sysbp <- 
-  gee(cursmoke ~ age + sysbp, 
-      data = frmgham, 
-      id = randid, 
-      family = binomial,
-      corstr = ("unstructured"))
-
-tibble(
-    variable = c("age"),
-    OR = 
-      exp(coef(summary(age))[2,1]),
-    lower_CI  = 
-      exp(coef(summary(age))[2,1] - 1.96*(coef(summary(age))[2,4])),
-    upper_CI = 
-      exp(coef(summary(age))[2,1] + 1.96*(coef(summary(age))[2,4])),
-    sysbp_OR =
-      exp(coef(summary(age_sysbp))[2,1]),
-    confounder =
-      if_else((sysbp_OR >= lower_CI & sysbp_OR <= upper_CI), FALSE, TRUE)
-  ) %>% 
-  knitr::kable(digits = 3)
-```
-sysbp_ctg is not a confounder since inferences for odds ratios of current smoking by age was not changed by sysbp_ctg at the significance level 0.05.  
-
-####diabp
-```{r}
-age_diabp <- 
-  gee(cursmoke ~ age + diabp, 
-      data = frmgham, 
-      id = randid, 
-      family = binomial,
-      corstr = ("unstructured"))
-
-tibble(
-    variable = c("age"),
-    OR = 
-      exp(coef(summary(age))[2,1]),
-    lower_CI  = 
-      exp(coef(summary(age))[2,1] - 1.96*(coef(summary(age))[2,4])),
-    upper_CI = 
-      exp(coef(summary(age))[2,1] + 1.96*(coef(summary(age))[2,4])),
-    diabp_OR =
-      exp(coef(summary(age_diabp))[2,1]),
-    confounder =
-      if_else((diabp_OR >= lower_CI & diabp_OR <= upper_CI), FALSE, TRUE)
-  ) %>% 
-  knitr::kable(digits = 3)
-```
-diabp is not a confounder since inferences for odds ratios of current smoking by age was not changed by diabp at the significance level 0.05.
-
-
-####bpmeds
-```{r}
-age_bpmeds <- 
-  gee(cursmoke ~ age + bpmeds, 
-      data = frmgham, 
-      id = randid, 
-      family = binomial,
-      corstr = ("unstructured"))
-
-tibble(
-    variable = c("age"),
-    OR = 
-      exp(coef(summary(age))[2,1]),
-    lower_CI  = 
-      exp(coef(summary(age))[2,1] - 1.96*(coef(summary(age))[2,4])),
-    upper_CI = 
-      exp(coef(summary(age))[2,1] + 1.96*(coef(summary(age))[2,4])),
-    bpmeds_OR =
-      exp(coef(summary(age_bpmeds))[2,1]),
-    confounder =
-      if_else((bpmeds_OR >= lower_CI & bpmeds_OR <= upper_CI), FALSE, TRUE)
-  ) %>% 
-  knitr::kable(digits = 3)
-```
-bpmeds is not a confounder since inferences for odds ratios of current smoking by age was not changed by bpmeds at the significance level 0.05.
-
-####educ
-```{r}
-age_educ <- 
-  gee(cursmoke ~ age + educ, 
-      data = frmgham, 
-      id = randid, 
-      family = binomial,
-      corstr = ("unstructured"))
-
-tibble(
-    variable = c("age"),
-    OR = 
-      exp(coef(summary(age))[2,1]),
-    lower_CI  = 
-      exp(coef(summary(age))[2,1] - 1.96*(coef(summary(age))[2,4])),
-    upper_CI = 
-      exp(coef(summary(age))[2,1] + 1.96*(coef(summary(age))[2,4])),
-    educ_OR =
-      exp(coef(summary(age_educ))[2,1]),
-    confounder =
-      if_else((educ_OR >= lower_CI & educ_OR <= upper_CI), FALSE, TRUE)
-  ) %>% 
-  knitr::kable(digits = 3)
-```
-educ is not a confounder since inferences for odds ratios of current smoking by age was not changed by educ at the significance level 0.05.
-
-
-####totchol
-```{r}
-age_totchol <- 
-  gee(cursmoke ~ age + totchol, 
-      data = frmgham, 
-      id = randid, 
-      family = binomial,
-      corstr = ("unstructured"))
-
-pot_conf <- names(frmgham)[-c(1:3, 5)]
-pot_conf <- 
-  pot_conf[-c(grep("time", pot_conf))]
-
-
-tibble(
-    variable = c("age"),
-    OR = 
-      exp(coef(summary(age))[2,1]),
-    lower_CI  = 
-      exp(coef(summary(age))[2,1] - 1.96*(coef(summary(age))[2,4])),
-    upper_CI = 
-      exp(coef(summary(age))[2,1] + 1.96*(coef(summary(age))[2,4])),
-    totchol_OR =
-      exp(coef(summary(age_totchol))[2,1]),
-    confounder =
-      if_else((totchol_OR >= lower_CI & totchol_OR <= upper_CI), FALSE, TRUE)
-  ) %>% 
-  knitr::kable(digits = 3)
-```
-totchol is not a confounder since inferences for odds ratios of current smoking by age was not changed by totchol at the significance level 0.05.
-
-####hdlc #### confounder
-```{r}
-age_hdlc <- 
-  gee(cursmoke ~ age + hdlc, 
-      data = frmgham, 
-      id = randid, 
-      family = binomial,
-      corstr = ("unstructured"))
-
-tibble(
-    variable = c("age"),
-    OR = 
-      exp(coef(summary(age))[2,1]),
-    lower_CI  = 
-      exp(coef(summary(age))[2,1] - 1.96*(coef(summary(age))[2,4])),
-    upper_CI = 
-      exp(coef(summary(age))[2,1] + 1.96*(coef(summary(age))[2,4])),
-    hdlc_OR =
-      exp(coef(summary(age_hdlc))[2,1]),
-    confounder =
-      if_else((hdlc_OR >= lower_CI & hdlc_OR <= upper_CI), FALSE, TRUE)
-  ) %>% 
-  knitr::kable(digits = 3)
-```
-hdlc is a confounder since inferences for odds ratios of current smoking by age was changed by hdlc at the significance level 0.05.
-
-
-####ldlc #### confounder
-```{r}
-age_ldlc <- 
-  gee(cursmoke ~ age + ldlc, 
-      data = frmgham, 
-      id = randid, 
-      family = binomial,
-      corstr = ("unstructured"))
-
-tibble(
-    variable = c("age"),
-    OR = 
-      exp(coef(summary(age))[2,1]),
-    lower_CI  = 
-      exp(coef(summary(age))[2,1] - 1.96*(coef(summary(age))[2,4])),
-    upper_CI = 
-      exp(coef(summary(age))[2,1] + 1.96*(coef(summary(age))[2,4])),
-    ldlc_OR =
-      exp(coef(summary(age_ldlc))[2,1]),
-
-for (conf in pot_conf) {
-  
-  data <- cbind(frmgham[,c("cursmoke", "age")], frmgham[,conf])
-  try(fit_gee <- gee(cursmoke ~ ., 
-      data = data, 
-      id = frmgham$randid, 
-      family = binomial,
-      corstr = ("unstructured")))
- 
-  result <- tibble(
-    variable = c("age"),
-    OR =
-      exp(coef(summary(age))[2,1]),
-    lower_CI  =
-      exp(coef(summary(age))[2,1] - 1.96*(coef(summary(age))[2,4])),
-    upper_CI =
-      exp(coef(summary(age))[2,1] + 1.96*(coef(summary(age))[2,4])),
-    potconf_OR =
-      exp(coef(summary(fit_gee))[2,1]),
->>>>>>> 3be9cc7b5a5db850200a76cdf470b60383298b71
-    confounder =
-      if_else((ldlc_OR >= lower_CI & ldlc_OR <= upper_CI), FALSE, TRUE)
-  ) %>% 
-  knitr::kable(digits = 3)
-```
-ldlc is a confounder since inferences for odds ratios of current smoking by age was changed by ldlc at the significance level 0.05.
-
-
-####bmi
-```{r}
-ggplot(frmgham, aes(x = bmi, y = cursmoke)) + 
-  geom_jitter(height = 0.2, width = 3) +
-  geom_smooth()
-
-ggplot(frmgham, aes(x = age, y = bmi)) + 
-  geom_point() +
-  geom_smooth()
-```
-Since there is no difference in bmi by age, bmi is not likely to be a confounder.
-
-####glucose
-```{r}
-age_glucose <- 
-  gee(cursmoke ~ age + glucose, 
-      data = frmgham, 
-      id = randid, 
-      family = binomial,
-      corstr = ("unstructured"))
-
-tibble(
-    variable = c("age"),
-    OR = 
-      exp(coef(summary(age))[2,1]),
-    lower_CI  = 
-      exp(coef(summary(age))[2,1] - 1.96*(coef(summary(age))[2,4])),
-    upper_CI = 
-      exp(coef(summary(age))[2,1] + 1.96*(coef(summary(age))[2,4])),
-    glucose_OR =
-      exp(coef(summary(age_glucose))[2,1]),
-    confounder =
-      if_else((glucose_OR >= lower_CI & glucose_OR <= upper_CI), FALSE, TRUE)
-  ) %>% 
-  knitr::kable(digits = 3)
-```
-glucose is not a confounder since inferences for odds ratios of current smoking by age was not changed by glucose at the significance level 0.05.
-
-
-####diabetes
-```{r}
-age_diabetes <- 
-  gee(cursmoke ~ age + diabetes, 
-      data = frmgham, 
-      id = randid, 
-      family = binomial,
-      corstr = ("unstructured"))
-
-tibble(
-    variable = c("age"),
-    OR = 
-      exp(coef(summary(age))[2,1]),
-    lower_CI  = 
-      exp(coef(summary(age))[2,1] - 1.96*(coef(summary(age))[2,4])),
-    upper_CI = 
-      exp(coef(summary(age))[2,1] + 1.96*(coef(summary(age))[2,4])),
-    diabetes_OR =
-      exp(coef(summary(age_diabetes))[2,1]),
-    confounder =
-      if_else((diabetes_OR >= lower_CI & diabetes_OR <= upper_CI), FALSE, TRUE)
-  ) %>% 
-  knitr::kable(digits = 3)
-```
-diabetes is not a confounder since inferences for odds ratios of current smoking by age was not changed by diabetes at the significance level 0.05.
-
-
-####heartrte
-```{r}
-age_heartrte <- 
-  gee(cursmoke ~ age + heartrte, 
-      data = frmgham, 
-      id = randid, 
-      family = binomial,
-      corstr = ("unstructured"))
-
-tibble(
-    variable = c("age"),
-    OR = 
-      exp(coef(summary(age))[2,1]),
-    lower_CI  = 
-      exp(coef(summary(age))[2,1] - 1.96*(coef(summary(age))[2,4])),
-    upper_CI = 
-      exp(coef(summary(age))[2,1] + 1.96*(coef(summary(age))[2,4])),
-    heartrte_OR =
-      exp(coef(summary(age_heartrte))[2,1]),
-    confounder =
-      if_else((heartrte_OR >= lower_CI & heartrte_OR <= upper_CI), FALSE, TRUE)
-  ) %>% 
-  knitr::kable(digits = 3)
-```
-heartrte is not a confounder since inferences for odds ratios of current smoking by age was not changed by heartrte at the significance level 0.05.
-
-
-####prevap
-```{r}
-age_prevap <- 
-  gee(cursmoke ~ age + prevap, 
-      data = frmgham, 
-      id = randid, 
-      family = binomial,
-      corstr = ("unstructured"))
-
-tibble(
-    variable = c("age"),
-    OR = 
-      exp(coef(summary(age))[2,1]),
-    lower_CI  = 
-      exp(coef(summary(age))[2,1] - 1.96*(coef(summary(age))[2,4])),
-    upper_CI = 
-      exp(coef(summary(age))[2,1] + 1.96*(coef(summary(age))[2,4])),
-    prevap_OR =
-      exp(coef(summary(age_prevap))[2,1]),
-    confounder =
-      if_else((prevap_OR >= lower_CI & prevap_OR <= upper_CI), FALSE, TRUE)
-  ) %>% 
-  knitr::kable(digits = 3)
-```
-prevap is not a confounder since inferences for odds ratios of current smoking by age was not changed by prevap at the significance level 0.05.
-
-####prevchd
-```{r}
-age_prevchd <- 
-  gee(cursmoke ~ age + prevchd, 
-      data = frmgham, 
-      id = randid, 
-      family = binomial,
-      corstr = ("unstructured"))
-
-tibble(
-    variable = c("age"),
-    OR = 
-      exp(coef(summary(age))[2,1]),
-    lower_CI  = 
-      exp(coef(summary(age))[2,1] - 1.96*(coef(summary(age))[2,4])),
-    upper_CI = 
-      exp(coef(summary(age))[2,1] + 1.96*(coef(summary(age))[2,4])),
-    prevchd_OR =
-      exp(coef(summary(age_prevchd))[2,1]),
-    confounder =
-      if_else((prevchd_OR >= lower_CI & prevchd_OR <= upper_CI), FALSE, TRUE)
-  ) %>% 
-  knitr::kable(digits = 3)
-```
-prevchd is not a confounder since inferences for odds ratios of current smoking by age was not changed by prevchd at the significance level 0.05.
-
-####prevmi
-```{r}
-age_prevmi <- 
-  gee(cursmoke ~ age + prevmi, 
-      data = frmgham, 
-      id = randid, 
-      family = binomial,
-      corstr = ("unstructured"))
-
-tibble(
-    variable = c("age"),
-    OR = 
-      exp(coef(summary(age))[2,1]),
-    lower_CI  = 
-      exp(coef(summary(age))[2,1] - 1.96*(coef(summary(age))[2,4])),
-    upper_CI = 
-      exp(coef(summary(age))[2,1] + 1.96*(coef(summary(age))[2,4])),
-    prevmi_OR =
-      exp(coef(summary(age_prevmi))[2,1]),
-    confounder =
-      if_else((prevmi_OR >= lower_CI & prevmi_OR <= upper_CI), FALSE, TRUE)
-  ) %>% 
-  knitr::kable(digits = 3)
-```
-prevmi is not a confounder since inferences for odds ratios of current smoking by age was not changed by prevmi at the significance level 0.05.
-
-####prevstrk
-```{r}
-age_prevstrk <- 
-  gee(cursmoke ~ age + prevstrk, 
-      data = frmgham, 
-      id = randid, 
-      family = binomial,
-      corstr = ("unstructured"))
-
-tibble(
-    variable = c("age"),
-    OR = 
-      exp(coef(summary(age))[2,1]),
-    lower_CI  = 
-      exp(coef(summary(age))[2,1] - 1.96*(coef(summary(age))[2,4])),
-    upper_CI = 
-      exp(coef(summary(age))[2,1] + 1.96*(coef(summary(age))[2,4])),
-    prevstrk_OR =
-      exp(coef(summary(age_prevstrk))[2,1]),
-    confounder =
-      if_else((prevstrk_OR >= lower_CI & prevstrk_OR <= upper_CI), FALSE, TRUE)
-  ) %>% 
-  knitr::kable(digits = 3)
-```
-prevstrk is not a confounder since inferences for odds ratios of current smoking by age was not changed by prevstrk at the significance level 0.05.
-
-####prevhyp 
-```{r}
-age_prevhyp <- 
-  gee(cursmoke ~ age + prevhyp, 
-      data = frmgham, 
-      id = randid, 
-      family = binomial,
-      corstr = ("unstructured"))
-
-tibble(
-    variable = c("age"),
-    OR = 
-      exp(coef(summary(age))[2,1]),
-    lower_CI  = 
-      exp(coef(summary(age))[2,1] - 1.96*(coef(summary(age))[2,4])),
-    upper_CI = 
-      exp(coef(summary(age))[2,1] + 1.96*(coef(summary(age))[2,4])),
-    prevhyp_OR =
-      exp(coef(summary(age_prevhyp))[2,1]),
-    confounder =
-      if_else((prevhyp_OR >= lower_CI & prevhyp_OR <= upper_CI), FALSE, TRUE)
-  ) %>% 
-  knitr::kable(digits = 3)
-```
-prevhyp is not a confounder since inferences for odds ratios of current smoking by age was not changed by prevhyp at the significance level 0.05.
-
-## Finding confounders using imputed data
-### age and cursmoke -- confounder: hdlc, ldlc
-```{r}
-# age <- 
-#   gee(cursmoke ~ age, 
-#       data = frmgham_complete, 
-#       id = randid, 
-#       family = binomial,
-#       corstr = ("unstructured"))
-# 
-# pot_conf <- names(frmgham_complete)[-c(1:3, 5)]
-# pot_conf <- 
-#   pot_conf[-c(grep("time", pot_conf), frmgham_complete$period, frmgham_complete$death)]
-# 
-# conf_det <- vector("list", length = length(pot_conf))
-# names(conf_det) <- pot_conf
-# 
-# 
-# 
-# for (conf in pot_conf) {
-#   
-#   data <- cbind(frmgham_complete[,c("cursmoke", "age")], frmgham_complete[,conf])
-#   try(fit_gee <- gee(cursmoke ~ ., 
-#       data = data, 
-#       id = frmgham_complete$randid, 
-#       family = binomial,
-#       corstr = ("unstructured")))
-#  
-#   result <- tibble(
-#     variable = c("age"),
-#     OR =
-#       exp(coef(summary(age))[2,1]),
-#     lower_CI  =
-#       exp(coef(summary(age))[2,1] - 1.96*(coef(summary(age))[2,4])),
-#     upper_CI =
-#       exp(coef(summary(age))[2,1] + 1.96*(coef(summary(age))[2,4])),
-#     potconf_OR =
-#       exp(coef(summary(fit_gee))[2,1]),
-#     confounder =
-#       if_else((potconf_OR >= lower_CI & potconf_OR <= upper_CI), FALSE, TRUE)
-#   )
-# 
-#   conf_det[[conf]] <- result
-# }
-# 
-# map(conf_det, knitr::kable, digits = 3)
-```
-
-## Finding confounders at baseline with glm
-### age and cursmoke -- confounder: hdlc, ldlc
-```{r}
-# frmgham_cs <-
-#   frmgham %>% filter(period == 1) %>% na.omit()
-# 
-# age <-
-#   glm(cursmoke ~ age,
-#       data = frmgham_cs,
-#       family = binomial)
-# 
-# pot_conf <- names(frmgham_cs)[-c(1:3, 5)]
-# pot_conf <-
-#   pot_conf[-c(grep("time", pot_conf), frmgham_cs$period, frmgham_cs$death)]
-# 
-# conf_det <- vector("list", length = length(pot_conf))
-# names(conf_det) <- pot_conf
-# 
-# 
-# 
-# for (conf in pot_conf) {
-# 
-#   data <- cbind(frmgham_cs[,c("cursmoke", "age")], frmgham_cs[,conf])
-#   try(fit_glm <- glm(cursmoke ~ .,
-#       data = data,
-#       family = binomial))
-# 
-#   result <- tibble(
-#     variable = c("age"),
-#     OR =
-#       exp(coef(summary(age))[2,1]),
-#     lower_CI  =
-#       exp(coef(summary(age))[2,1] - 1.96*(coef(summary(age))[2,2])),
-#     upper_CI =
-#       exp(coef(summary(age))[2,1] + 1.96*(coef(summary(age))[2,2])),
-#     potconf_OR =
-#       exp(coef(summary(fit_glm))[2,1]),
-#     confounder =
-#       if_else((potconf_OR >= lower_CI & potconf_OR <= upper_CI), FALSE, TRUE)
-#   )
-# 
-#   conf_det[[conf]] <- result
-# }
-# 
-# map(conf_det, knitr::kable, digits = 3)
-```
-
-
-## Fit glmer
+## Fit model using glmer
 ```{r}
 cursmoke_age <-
-  glmer(cursmoke ~ age + sex + educ + prevchd + (1|randid), 
-        data = frmgham, family = binomial)
+  glmer(cursmoke ~ age*sex + educ + hdlc + ldlc + age*prevhyp + (1|randid), 
+        data = frmgham, family = binomial, nAGQ = 0)
+
 summary(cursmoke_age)
 ```
-
 
 (2) Is there a relationship between the number of cigarettes smoked per day and age?  Does this relationship differ by sex? 
 

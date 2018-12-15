@@ -162,6 +162,7 @@ frmgham %>%
        x = "Age",
        y = "Probability of current smoking")
 
+
 ### by educ -- not modified except 35-
 
 frmgham %>% 
