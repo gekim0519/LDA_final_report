@@ -1,0 +1,323 @@
+---
+title: "final_lda"
+author: "Lynette Pan"
+date: "12/13/2018"
+output: html_document
+---
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+library(tidyverse)
+library(janitor)
+library(mice)
+library(gee)
+
+frmgham = 
+  read.csv2("frmgham2.csv", sep = ",", na.strings=c("","NA")) %>% 
+  clean_names() %>% select(cursmoke, everything()) %>% 
+  mutate(sex = as.factor(sex),
+         bpmeds = as.factor(bpmeds),
+         educ = as.factor(educ),
+         diabetes = as.factor(diabetes),
+         prevap = as.factor(prevap),
+         prevchd = as.factor(prevchd),
+         prevmi = as.factor(prevmi),
+         prevstrk = as.factor(prevstrk),
+         prevhyp = as.factor(prevhyp),
+         sysbp = as.numeric(levels(sysbp))[sysbp],
+         diabp = as.numeric(as.character(diabp)),
+         bmi = as.numeric(as.character(bmi))) %>% 
+  as.tibble()
+
+## created age category variable (age_ctg)
+frmgham =
+  frmgham %>% 
+  mutate(
+      age_ctg = case_when(
+      age < 35 ~ "35-",  
+      age %in% 35:44 ~ "35-44",
+      age %in% 45:54 ~ "45-54",
+      age %in% 55:64 ~ "55-64",
+      age %in% 65:74 ~ "65-74",
+      age >= 75 ~ "75+"
+    ),
+    age_ctg = fct_relevel(age_ctg, "35-")) 
+
+## created sysbp category variable (sysbp_ctg)
+### According to the new guideline from american heart association
+### https://www.ahajournals.org/doi/10.1161/HYP.0000000000000065
+frmgham =
+  frmgham %>% 
+  mutate(
+      sysbp_ctg = case_when(
+      sysbp < 120 ~ "normal",  
+      (sysbp >= 120 & sysbp < 130) ~ "elevated",
+      (sysbp >= 130 & sysbp < 140) ~ "stage1",
+      (sysbp >= 140 & sysbp <= 180) ~ "stage2",
+      sysbp > 180 ~ "crisis"
+    ),
+    sysbp_ctg = fct_relevel(sysbp_ctg, "normal")) 
+
+## created sysbp category variable (diabp_ctg)
+### According to the new guideline from american heart association
+### https://www.ahajournals.org/doi/10.1161/HYP.0000000000000065
+frmgham =
+  frmgham %>% 
+  mutate(
+      diabp_ctg = case_when(
+      diabp < 80 ~ "normal and elevated",  
+      (diabp >= 80 & diabp < 90) ~ "stage1",
+      (diabp >= 90 & diabp <= 120 ) ~ "stage2",
+      diabp > 120 ~ "crisis"
+      ),
+    diabp_ctg = fct_relevel(diabp_ctg, "normal and elevated")) 
+
+```
+(3)The relationship between current smoking status and serum total cholesterol. Again, while answering these questions, please account for any confounders that you have evidence may impact these relationships. 
+
+
+```{r}
+frmgham %>% 
+  ggplot(., aes(x=cursmoke, y=totchol)) +
+    geom_bar(stat="identity") +ggtitle("Unadjusted relationship between current smoking status and serum total cholesterol")
+
+frmgham %>% 
+  ggplot(., aes(x=as.factor(period), y=totchol,group=randid)) +
+  geom_line() +ggtitle("Unadjusted relationship between current smoking status and serum total cholesterol")+facet_wrap(~factor(cursmoke))
+#https://medlineplus.gov/cholesterollevelswhatyouneedtoknow.html
+#categorized totchol based on link above
+
+frmgham=frmgham %>% 
+  mutate(totchol_ctg= ifelse(age<=19 & totchol<170,0,
+                             ifelse(age>19&totchol %in% c(125, 200), 0,1)))
+table(frmgham$totchol_ctg)
+# 124 normal total chol 
+# 11503 abnormal total chol
+```
+
+## Finding confounders
+
+
+```{r}
+library(nlme)
+frmgham= frmgham %>% 
+  mutate(bmi=as.numeric(as.character(bmi))) %>% 
+  mutate(bmi_cat = ifelse(bmi<18.5,0,ifelse(bmi %in% c(18.5,24.9), 1, ifelse(bmi %in% c(25, 29.9),2, 3))))
+
+a=as.data.frame(lapply(frmgham[,c("cursmoke","age","sex","prevchd")], as.numeric))
+cor(a)
+totchol1 <- 
+  gls(totchol ~ as.factor(cursmoke)+age+sex+prevchd, 
+      data = frmgham,na.action=na.omit)
+
+totchol <- 
+  gls(totchol ~ as.factor(cursmoke), data = frmgham,na.action=na.omit)
+totchol3=lmer(totchol ~ as.factor(cursmoke)+age+sex+prevchd+(1|randid),
+              data=frmgham)
+
+totchol4=lmer(totchol ~ as.factor(cursmoke)*age+sex+prevchd+(as.factor(cursmoke)|randid),
+              data=frmgham)
+
+totchol5=lmer(totchol ~ as.factor(cursmoke)+age+sex+prevchd+bmi+(1|randid),
+              data=frmgham)
+library(lme4)
+totchol6=lmer(totchol ~ as.factor(cursmoke)+age+sex+prevchd+bmi+(1|randid),
+              data=frmgham)
+AIC(totchol6)
+
+totchol7=lmer(totchol ~ as.factor(cursmoke)*sex+bmi+age+prevchd+(1|randid),
+              data=frmgham)
+totchol8=lmer(totchol ~ as.factor(cursmoke)*sex+bmi+age+(1|randid),
+              data=frmgham)
+totchol9=lmer(totchol ~ as.factor(cursmoke)+sex+bmi+age+(1|randid),
+              data=frmgham)
+RLRsim::exactRLRT(totchol8)
+anova(totchol, totchol8)
+summary(totchol9)
+summary(totchol8)
+
+AIC(totchol7)
+pot_conf <- names(frmgham)[-c(1,2,4)]
+pot_conf <- pot_conf[-c(grep("time", pot_conf), grep("death", pot_conf))]
+
+conf_det <- vector("list", length = length(pot_conf))
+names(conf_det) <- pot_conf
+
+
+
+for (conf in pot_conf) {
+
+ data <- cbind(frmgham[,c("totchol","cursmoke")], frmgham[,conf])
+ try(fit_gee <- gls(totchol ~ .,
+     data = data,
+     ,na.action=na.omit))
+
+ result <- tibble(
+   variable = c("totchol"),
+   OR =
+     exp(coef(summary(totchol))[2,1]),
+   lower_CI  =
+     exp(coef(summary(totchol))[2,1] - 1.96*(coef(summary(totchol))[2,3])),
+   upper_CI =
+     exp(coef(summary(totchol))[2,1] + 1.96*(coef(summary(totchol))[2,3])),
+   potconf_OR =
+     exp(coef(summary(fit_gee))[2,1]),
+   confounder =
+     if_else((potconf_OR >= lower_CI & potconf_OR <= upper_CI), FALSE, TRUE)
+ )
+
+ conf_det[[conf]] <- result
+}
+
+map(conf_det, knitr::kable, digits = 3)
+```
+
+
+(1) age
+
+
+```{r}
+
+
+frmgham%>% 
+  select(randid,totchol_ctg, age_ctg, cursmoke) %>% 
+  na.omit() %>% 
+  group_by(totchol_ctg,age_ctg) %>% 
+  dplyr::summarise(percent.currentsmoke = sum(cursmoke)/n(),
+                   n = n())
+frmgham %>%
+  select(randid,totchol_ctg, age_ctg, cursmoke) %>% 
+  na.omit() %>% 
+  group_by(totchol_ctg,age_ctg) %>%
+  summarise(num.currentsmoke = sum(cursmoke)) %>% 
+  ggplot(., aes(as.factor(totchol_ctg),num.currentsmoke)) +
+    geom_bar(stat = "identity")+
+  facet_wrap(~age_ctg)
+
+
+plot_dt=frmgham %>%
+  mutate(cursmoke=as.factor(cursmoke)) %>% 
+  group_by(cursmoke, sex) %>%
+  summarise(
+    n=n(),
+    mean=mean(totchol, na.rm=T),
+    sd=sd(totchol, na.rm=T)
+  ) %>%
+  mutate( se=sd/sqrt(n))  %>%
+  mutate( ic=se * qt((1-0.05)/2 + .5, n-1))
+
+
+ggplot(plot_dt)+
+  geom_bar( aes(x=cursmoke, y=mean), stat="identity", fill="forestgreen", alpha=0.5) +
+  geom_errorbar( aes(x=cursmoke, ymin=mean-ic, ymax=mean+ic), width=0.4, colour="orange", alpha=0.9, size=1.5) +
+  ggtitle("Mean totochol by cursmoke status")+facet_wrap(~sex)
+
+
+frmgham %>%
+  mutate(cursmoke=as.factor(cursmoke)) %>% 
+  group_by(cursmoke, prevchd) %>%
+  summarise(
+    n=n(),
+    mean=mean(totchol, na.rm=T),
+    sd=sd(totchol, na.rm=T)
+  ) %>%
+  mutate( se=sd/sqrt(n))  %>%
+  mutate( ic=se * qt((1-0.05)/2 + .5, n-1)) %>% 
+  ggplot(.)+
+  geom_bar(aes(x=cursmoke, y=mean), stat="identity", fill="forestgreen", alpha=0.5) +
+  geom_errorbar( aes(x=cursmoke, ymin=mean-ic, ymax=mean+ic), width=0.4, colour="orange", alpha=0.9, size=1.5) +
+  ggtitle("Mean totochol by cursmoke status")+facet_wrap(~prevchd)
+
+frmgham %>%
+  mutate(cursmoke=as.factor(cursmoke)) %>% 
+  group_by(cursmoke, age_ctg) %>%
+  summarise(
+    n=n(),
+    mean=mean(totchol, na.rm=T),
+    sd=sd(totchol, na.rm=T)
+  ) %>%
+  mutate( se=sd/sqrt(n))  %>%
+  mutate( ic=se * qt((1-0.05)/2 + .5, n-1)) %>% 
+  ggplot(.)+
+  geom_bar(aes(x=cursmoke, y=mean), stat="identity", fill="forestgreen", alpha=0.5) +
+  geom_errorbar( aes(x=cursmoke, ymin=mean-ic, ymax=mean+ic), width=0.4, colour="orange", alpha=0.9, size=1.5) +
+  ggtitle("Mean totochol by cursmoke status")+facet_wrap(~age_ctg)
+
+
+
+frmgham %>%
+  mutate(cursmoke=as.factor(cursmoke)) %>% 
+  group_by(cursmoke, bmi_cat) %>%
+  summarise(
+    n=n(),
+    mean=mean(totchol, na.rm=T),
+    sd=sd(totchol, na.rm=T)
+  ) %>%
+  mutate( se=sd/sqrt(n))  %>%
+  mutate( ic=se * qt((1-0.05)/2 + .5, n-1)) %>% 
+  ggplot(.)+
+  geom_bar(aes(x=cursmoke, y=mean), stat="identity", fill="forestgreen", alpha=0.5) +
+  geom_errorbar( aes(x=cursmoke, ymin=mean-ic, ymax=mean+ic), width=0.4, colour="orange", alpha=0.9, size=1.5) +
+  ggtitle("Mean totochol by cursmoke status")+facet_wrap(~bmi_cat)
+```
+
+(2)hdlc
+
+```{r}
+frmgham%>% 
+  select(randid,totchol_ctg, hdlc, cursmoke) %>% 
+  mutate(hdlc_ctg = cut(hdlc,breaks=c(-Inf, 40, 60, Inf), labels = c("Low", "Normal","Good"))) %>% 
+  na.omit() %>% 
+  group_by(totchol_ctg,hdlc_ctg) %>% 
+  dplyr::summarise(percent.currentsmoke = sum(cursmoke)/n(),
+                   n = n())
+
+frmgham %>%
+  select(randid,totchol_ctg, hdlc, cursmoke) %>% 
+  mutate(hdlc_ctg = cut(hdlc,breaks=c(-Inf, 40, 60, Inf), labels = c("Low", "Normal","Good"))) %>% 
+  na.omit() %>%  
+  group_by(totchol_ctg,hdlc_ctg) %>%
+  summarise(num.currentsmoke = sum(cursmoke)) %>% 
+  ggplot(., aes(as.factor(totchol_ctg),num.currentsmoke)) +
+    geom_bar(stat = "identity")+
+  facet_wrap(~hdlc_ctg)
+```
+
+
+(3)ldlc
+
+```{r}
+frmgham%>% 
+  select(randid,totchol_ctg, ldlc, cursmoke) %>% 
+  mutate(ldlc_ctg = ifelse(ldlc>=130, "High","Ideal")) %>% 
+  na.omit() %>% 
+  group_by(totchol_ctg,ldlc_ctg) %>% 
+  dplyr::summarise(percent.currentsmoke = sum(cursmoke)/n(),
+                   n = n())
+
+
+frmgham %>%
+  select(randid,totchol_ctg, ldlc, cursmoke) %>% 
+  mutate(ldlc_ctg = ifelse(ldlc>=130, "High","Ideal")) %>% 
+  na.omit()  %>%  
+  group_by(totchol_ctg,ldlc_ctg) %>%
+  summarise(num.currentsmoke = sum(cursmoke)) %>% 
+  ggplot(., aes(as.factor(totchol_ctg),num.currentsmoke)) +
+    geom_bar(stat = "identity")+
+  facet_wrap(~ldlc_ctg)
+```
+
+From the table above, we found age, ldlc and hdlc are confounders. 
+
+## model fitting
+
+
+```{r}
+b_par<-bootMer(x=totchol8,FUN=fixef,nsim=200)
+boot::boot.ci(b_par,type="basic",index=6)
+fixef(totchol6)
+```
+
+#Multilevel bootstrapping
+
+
+

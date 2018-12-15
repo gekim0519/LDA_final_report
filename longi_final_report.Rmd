@@ -1602,7 +1602,10 @@ se <- sqrt(diag(vcov(m1)))
 (tab <- cbind(Est = fixef(m1), LL = fixef(m1) - 1.96 * se, UL = fixef(m1) + 1.96 *
     se))
 exp(tab)
-
+m2 = glmer(cursmoke ~ totchol*age+ hdlc+age*ldlc+(1|randid),
+      data = frmgham, nAGQ=0,
+      family = binomial(link=logit))
+summary(m2)
 ```
 
 
