@@ -1209,6 +1209,7 @@ for (conf in pot_conf) {
 
   data <- cbind(frmgham[,c("cigpday", "age", "randid")], frmgham[,conf])
   formula <- paste("cigpday","~","age + (1|randid) +", conf)
+  
   try(fit_glmer <- glmer(formula,
       data = data,
       family = poisson,
