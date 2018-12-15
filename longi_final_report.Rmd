@@ -415,6 +415,9 @@ frmgham %>%
 
 ## Fit model using glmer
 ```{r}
+#educ variable
+##https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4939617/
+  
 cursmoke_age <-
   glmer(cursmoke ~ age*sex + educ + hdlc + ldlc + age*prevhyp + (1|randid), 
         data = frmgham, family = binomial, nAGQ = 0)
