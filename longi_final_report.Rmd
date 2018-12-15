@@ -422,14 +422,20 @@ cursmoke_age <-
   glmer(cursmoke ~ age*sex + educ + hdlc + ldlc + age*prevhyp + (1|randid), 
         data = frmgham, family = binomial, nAGQ = 0)
 
-summary(cursmoke_age)
+summary(cursmoke_age) ## AIC 3581.6, var(random) = 0.007
 
 # changed model based on cigpday
 cursmoke_age <-
   glmer(cursmoke ~ age*sex + educ + heartrte + hdlc + ldlc + age*prevhyp + (1|randid), 
         data = frmgham, family = binomial, nAGQ = 0)
 
-summary(cursmoke_age)
+summary(cursmoke_age) ## AIC 3550.2, var(random) = 0.004
+
+# cursmoke_age <-
+#   glmer(cursmoke ~ age*sex + educ + heartrte + age*prevhyp + (1|randid), 
+#         data = frmgham, family = binomial, nAGQ = 0)
+# 
+# summary(cursmoke_age) ## AIC 10644.9 var(random) = 21.15
 ```
 
 ```{r}
