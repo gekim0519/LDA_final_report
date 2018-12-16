@@ -1,7 +1,7 @@
 ---
-title: "logitudinal_final_proj"
-author: "Lynette Pan"
-date: "12/3/2018"
+title: "final_report"
+author: "Youn Kyeong Chang (uni# yc3242)"
+date: "December 15, 2018"
 output: github_document
 ---
 
@@ -15,6 +15,7 @@ library(janitor)
 library(mice)
 library(gee)
 library(lme4)
+library(RLRsim)
 
 frmgham = 
   read.csv2("frmgham2.csv", sep = ",", na.strings = c("","NA")) %>% 
@@ -149,11 +150,7 @@ for (conf in pot_conf) {
     upper_CI =
       exp(coef(summary(age))[2,1] + 1.96*(coef(summary(age))[2,2])),
     potconf_OR =
-<<<<<<< HEAD
-      exp(coef(summary(fit_gee))[2,1]),
-=======
       exp(coef(summary(fit_glmer))[2,1]),
->>>>>>> 2261cd73fb11b5590b29978c2a5f67d3ed3af939
     confounder =
       if_else((potconf_OR >= lower_CI & potconf_OR <= upper_CI), FALSE, TRUE)
   )
@@ -366,28 +363,18 @@ frmgham_smoker %>%
   
 ```
 
-
-```{r spaghetti plot}
-frmgham_smoker %>% 
-  mutate(sex = ifelse(sex == 1, "male", "women")) %>%
-  ggplot(aes(x = age, y = cigpday, group = randid, color = sex)) +
-  geom_point(alpha = .5) +
-  geom_line(alpha = .5) 
-```
-Looking at the plot, we can consider random intercept model.
-
-We see that most of the particpants are smoking 20 cigarettes per day.
-
 ```{r finding counfounders for m2}
 # I will look into SYSBP DIABP TOTCHOL BMI DIABETES 
 # based on https://tobaccocontrol.bmj.com/content/14/5/315
 
-age <- glmer(cigpday ~ age + (1 | randid), 
-      data = frmgham,
+age <- 
+  gee(cigpday ~ age, 
+      data = frmgham, 
+      id = randid, 
       family = poisson,
-      nAGQ = 0)
+      corstr = ("unstructured"))
 
-pot_conf <- names(frmgham)[-c(2, 5, 8)]
+pot_conf <- names(frmgham)[-c(2, 3, 5, 8)]
 pot_conf <-
   pot_conf[-c(grep("time", pot_conf))]
 
@@ -399,24 +386,23 @@ names(conf_det) <- pot_conf
 
 for (conf in pot_conf) {
 
-  data <- cbind(frmgham[,c("cigpday", "age", "randid")], frmgham[,conf])
-  formula <- paste("cigpday","~","age + (1|randid) +", conf)
-  
-  try(fit_glmer <- glmer(formula,
+  data <- cbind(frmgham[,c("cursmoke", "age")], frmgham[,conf])
+  try(fit_gee <- gee(cursmoke ~ .,
       data = data,
+      id = frmgham$randid,
       family = poisson,
-      nAGQ = 0))
+      corstr = ("unstructured")))
 
   result <- tibble(
     variable = c("age"),
     OR =
       exp(coef(summary(age))[2,1]),
     lower_CI  =
-      exp(coef(summary(age))[2,1] - 1.96*(coef(summary(age))[2,2])),
+      exp(coef(summary(age))[2,1] - 1.96*(coef(summary(age))[2,4])),
     upper_CI =
-      exp(coef(summary(age))[2,1] + 1.96*(coef(summary(age))[2,2])),
+      exp(coef(summary(age))[2,1] + 1.96*(coef(summary(age))[2,4])),
     potconf_OR =
-      exp(coef(summary(fit_glmer))[2,1]),
+      exp(coef(summary(fit_gee))[2,1]),
     confounder =
       if_else((potconf_OR >= lower_CI & potconf_OR <= upper_CI), FALSE, TRUE)
   )
@@ -424,73 +410,32 @@ for (conf in pot_conf) {
   conf_det[[conf]] <- result
 }
 
-#map(conf_det, knitr::kable, digits = 3)
-conf_det
+map(conf_det, knitr::kable, digits = 3)
+map(conf_det, knitr::kable, digits = 3)
 ```
-
-```{r}
-frmgham %>% 
-  mutate(sex = ifelse(sex == 1, "male", "women")) %>%
-  select(randid, cigpday, age_ctg, sex) %>% 
-  na.omit() %>% 
-  group_by(age_ctg, sex) %>% 
-  summarise(n = n(),
-           cigpday_mean = sum(cigpday)/n()) %>%
-  ggplot(aes(x = age_ctg, y = cigpday_mean, color = sex, group = sex)) +
-  geom_line() +
-  labs(title = "Relationship between categorized age and cigpday by sex",
-       x = "Age",
-       y = "mean number of cigarettes smoked per day")
-```
-
 
 ```{r backward selection}
-cigpday.lmer1<- glmer(cigpday ~ age + sex + heartrte + prevchd + hdlc + prevap + (1 | randid), data = frmgham_smoker, family = poisson, nAGQ = 0)
+cigpday.lmer1<- glmer(cigpday ~ age + sex + heartrte + hdlc + ldlc + totchol + (1 | randid), data = frmgham_smoker, family = poisson, nAGQ = 0)
 summary(cigpday.lmer1)
-# AIC   7873.592 
-cigpday.lmer2<- glmer(cigpday ~ age + sex + heartrte + prevchd + hdlc + (1 | randid), data = frmgham_smoker, family = poisson, nAGQ = 0)
+# AIC   7876.2 
+cigpday.lmer2<- glmer(cigpday ~ age + sex + heartrte + hdlc  + totchol + (1 | randid), data = frmgham_smoker, family = poisson, nAGQ = 0)
 summary(cigpday.lmer2)
-# AIC 7874.8
-# remove prevchd
+# AIC 7874.4
 cigpday.lmer3<- glmer(cigpday ~ age + sex + heartrte + hdlc + (1 | randid), data = frmgham_smoker, family = poisson, nAGQ = 0)
 summary(cigpday.lmer3)
 # AIC 7872.8
 
 # tested interaction term with age
-cigpday.lmer4<- glmer(cigpday ~ age + sex + heartrte + hdlc + age:sex + (1 | randid), data = frmgham_smoker, family = poisson, nAGQ = 0)
-summary(cigpday.lmer4)
-# AIC  7873.8
 cigpday.lmer4<- glmer(cigpday ~ age + sex + heartrte + hdlc + age:heartrte + (1 | randid), data = frmgham_smoker, family = poisson, nAGQ = 0)
 summary(cigpday.lmer4)
 # decided with heartrte
 # AIC   7870.3
 ```
 
-I will try putting other variables in the model based on research papers. (educ, sex*age)
 
-```{r model selection based on research}
-cigpday.lmer<- glmer(cigpday ~ age + sex + educ + heartrte + prevhyp + age*sex + age:prevhyp + (1 | randid), data = frmgham_smoker, family = poisson, nAGQ = 0)
+```{r final model }
+cigpday.lmer<- glmer(cigpday ~ age + sex + heartrte + hdlc + age*heartrte + (1 | randid), data = frmgham_smoker, family = poisson, nAGQ = 0)
 summary(cigpday.lmer)
-# AIC 35492.2
-
-cigpday.lmer<- glmer(cigpday ~ age + sex + educ + heartrte + prevhyp + hdlc + age:sex + age:prevhyp + (1 | randid), data = frmgham_smoker, family = poisson, nAGQ = 0)
-summary(cigpday.lmer)
-# AIC 7678.7
-# need to include hdlc
-
-# removing prevhyp and age:prevhyp add age:heartrte
-cigpday.lmer<- glmer(cigpday ~ age + sex + educ + heartrte + hdlc + age:heartrte + (1 | randid), data = frmgham_smoker, family = poisson, nAGQ = 0)
-summary(cigpday.lmer)
-# AIC 7672.4 
-
-# removing educ
-cigpday.lmer<- glmer(cigpday ~ age + sex + heartrte + hdlc + age:heartrte + (1 | randid), data = frmgham_smoker, family = poisson, nAGQ = 0)
-summary(cigpday.lmer)
-# AIC 7870.3 
-
-exp(0.0190057)
-exp(-0.0004549)
-exp(0.0190057) * exp(-0.0004549)
 ```
 
 
@@ -578,7 +523,7 @@ ggplot(data = frmgham, aes(x = period, y = sysbp, group = randid)) +
 
 syslm = lm(sysbp~cursmoke, data = frmgham)
 sysbp <- lmer(sysbp ~ cursmoke + (1|randid), data = frmgham)
-exactLRT(sysbp, syslm)
+# exactLRT(sysbp, syslm)
 ##p-value < 2.2e-16, random effect is significant.
 
 #find the confounder
@@ -687,7 +632,7 @@ ggplot(data = frmgham, aes(x = period, y = diabp, group = randid)) +
 
 dialm = lm(diabp~cursmoke, data = frmgham)
 diabp <- lmer(diabp ~ cursmoke + (1|randid), data = frmgham)
-exactLRT(diabp, dialm)
+# exactLRT(diabp, dialm)
 #p-value < 2.2e-16, random effect is significant.
 
 #find confounder
@@ -801,7 +746,8 @@ a=as.data.frame(lapply(frmgham[,c("cursmoke","age","sex","prevchd")], as.numeric
 cor(a)
 totchol1 <- 
   gls(totchol ~ as.factor(cursmoke)*period+sex+bmi+age, 
-      data = frmgham,na.action=na.omit, corr = corCompSymm(,form= ~ 1 | randid) )
+      data = frmgham,na.action=na.omit, 
+      corr = corCompSymm(,form= ~ 1 | randid) )
 totchol <- 
   gls(totchol ~ as.factor(cursmoke), data = frmgham,na.action=na.omit)
 totchol3=lmer(totchol ~ as.factor(cursmoke)+age+sex+prevchd+(1|randid),
@@ -942,6 +888,7 @@ boot::boot.ci(b_par,type="basic",index=2)
 lmer <- lmer(diabp ~ cursmoke*sysbp + bmi + prevhyp + (1|randid),  data = frmgham)
 summary(lmer)
 ```
+
 
 
 
