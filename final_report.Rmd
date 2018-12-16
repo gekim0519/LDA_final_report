@@ -746,7 +746,8 @@ a=as.data.frame(lapply(frmgham[,c("cursmoke","age","sex","prevchd")], as.numeric
 cor(a)
 totchol1 <- 
   gls(totchol ~ as.factor(cursmoke)*period+sex+bmi+age, 
-      data = frmgham,na.action=na.omit, corr = corCompSymm(,form= ~ 1 | randid) )
+      data = frmgham,na.action=na.omit, 
+      corr = corCompSymm(,form= ~ 1 | randid) )
 totchol <- 
   gls(totchol ~ as.factor(cursmoke), data = frmgham,na.action=na.omit)
 totchol3=lmer(totchol ~ as.factor(cursmoke)+age+sex+prevchd+(1|randid),
