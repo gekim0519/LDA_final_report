@@ -100,14 +100,6 @@ table(frmgham$totchol_ctg)
 # 11503 abnormal total chol
 ```
 
-##spaghetti plot
-
-```{r}
-frmgham %>% 
-  select(randid, cursmoke, totchol, )
-```
-
-
 
 ## Finding confounders
 
@@ -122,7 +114,7 @@ a=as.data.frame(lapply(frmgham[,c("cursmoke","age","sex","prevchd")], as.numeric
 cor(a)
 totchol1 <- 
   gls(totchol ~ as.factor(cursmoke)*period+sex+bmi+age, 
-      data = frmgham,na.action=na.omit, corr = corCompSymm(, form= ~ 1 | randid) )
+      data = frmgham,na.action=na.omit, corr = corCompSymm(,form= ~ 1 | randid) )
 
 totchol <- 
   gls(totchol ~ as.factor(cursmoke), data = frmgham,na.action=na.omit)
@@ -134,10 +126,8 @@ totchol4=lmer(totchol ~ as.factor(cursmoke)*age+sex+prevchd+(as.factor(cursmoke)
 
 totchol5=lmer(totchol ~ as.factor(cursmoke)+age+sex+prevchd+bmi+(1|randid),
               data=frmgham)
-library(lme4)
 totchol6=lmer(totchol ~ as.factor(cursmoke)+age+sex+prevchd+bmi+(1|randid),
               data=frmgham)
-AIC(totchol6)
 
 frmgham=frmgham %>% 
   mutate(period = period-1)
@@ -155,82 +145,57 @@ totchol10=lmer(totchol ~ as.factor(cursmoke)+as.factor(period)+sex+bmi+age+(1|ra
 
 totchol12=lmer(totchol ~ as.factor(cursmoke)+as.factor(period)+bmi+age+(1|randid),
               data=frmgham)
-
+#final model
 totchol13=lmer(totchol ~ as.factor(cursmoke)*sex+bmi+age+prevstrk+prevchd+(1|randid),
               data=frmgham)
 
-
-
-totchol14=lmer(totchol ~ as.factor(cursmoke)+sex+age+bmi+prevstrk+prevchd+(1|randid),
-               data=frmgham)
 summary(totchol13)
-AIC(totchol10)
-summary(totchol10)
-summary(totchol11)
-anova(totchol13,totchol14)
+# AIC(totchol10)
+# summary(totchol10)
+# summary(totchol11)
+# anova(totchol13,totchol14)
+# test the significance of random effect
+#sig_ranef=RLRsim::exactRLRT(totchol13, seed=1)
 
-sig_ranef=RLRsim::exactRLRT(totchol13, seed=1)
-anova(totchol10, totchol11)
-summary(totchol10)
-summary(totchol8)
-
-AIC(totchol7)
-pot_conf <- names(frmgham)[-c(1,2,4)]
-pot_conf <- pot_conf[-c(grep("time", pot_conf), grep("death", pot_conf))]
-
-conf_det <- vector("list", length = length(pot_conf))
-names(conf_det) <- pot_conf
-
-
-
-for (conf in pot_conf) {
-
- data <- cbind(frmgham[,c("totchol","cursmoke")], frmgham[,conf])
- try(fit_gee <- gls(totchol ~ .,
-     data = data,
-     ,na.action=na.omit))
-
- result <- tibble(
-   variable = c("totchol"),
-   OR =
-     exp(coef(summary(totchol))[2,1]),
-   lower_CI  =
-     exp(coef(summary(totchol))[2,1] - 1.96*(coef(summary(totchol))[2,3])),
-   upper_CI =
-     exp(coef(summary(totchol))[2,1] + 1.96*(coef(summary(totchol))[2,3])),
-   potconf_OR =
-     exp(coef(summary(fit_gee))[2,1]),
-   confounder =
-     if_else((potconf_OR >= lower_CI & potconf_OR <= upper_CI), FALSE, TRUE)
- )
-
- conf_det[[conf]] <- result
-}
-
-map(conf_det, knitr::kable, digits = 3)
+# pot_conf <- names(frmgham)[-c(1,2,4)]
+# pot_conf <- pot_conf[-c(grep("time", pot_conf), grep("death", pot_conf))]
+# 
+# conf_det <- vector("list", length = length(pot_conf))
+# names(conf_det) <- pot_conf
+# 
+# 
+# 
+# for (conf in pot_conf) {
+# 
+#  data <- cbind(frmgham[,c("totchol","cursmoke")], frmgham[,conf])
+#  try(fit_gee <- gls(totchol ~ .,
+#      data = data,
+#      ,na.action=na.omit))
+# 
+#  result <- tibble(
+#    variable = c("totchol"),
+#    OR =
+#      exp(coef(summary(totchol))[2,1]),
+#    lower_CI  =
+#      exp(coef(summary(totchol))[2,1] - 1.96*(coef(summary(totchol))[2,3])),
+#    upper_CI =
+#      exp(coef(summary(totchol))[2,1] + 1.96*(coef(summary(totchol))[2,3])),
+#    potconf_OR =
+#      exp(coef(summary(fit_gee))[2,1]),
+#    confounder =
+#      if_else((potconf_OR >= lower_CI & potconf_OR <= upper_CI), FALSE, TRUE)
+#  )
+# 
+#  conf_det[[conf]] <- result
+# }
+# 
+# map(conf_det, knitr::kable, digits = 3)
 ```
 
 
-(1) age
-
+##visualize the relationship between totchol and cursmoke by each confounding variable:
 
 ```{r}
-
-
-frmgham%>% 
-  select(randid,totchol_ctg, age_ctg, cursmoke) %>% 
-  na.omit() %>% 
-  group_by(totchol_ctg,age_ctg) %>% 
-  dplyr::summarise(percent.currentsmoke = sum(cursmoke)/n(),
-                   n = n())
-frmgham %>%
-  select(randid,totchol_ctg, age_ctg, cursmoke) %>% 
-  na.omit() %>% 
-  group_by(totchol_ctg,age_ctg) %>%
-  summarise(num.currentsmoke = sum(cursmoke)) %>% 
-  ggplot(., aes(as.factor(totchol_ctg),num.currentsmoke)) +
-    geom_bar(stat = "identity")+
-  facet_wrap(~age_ctg)
 
 
 plot_dt=frmgham %>%
@@ -248,7 +213,7 @@ plot_dt=frmgham %>%
 ggplot(plot_dt)+
   geom_bar( aes(x=cursmoke, y=mean), stat="identity", fill="forestgreen", alpha=0.5) +
   geom_errorbar( aes(x=cursmoke, ymin=mean-ic, ymax=mean+ic), width=0.4, colour="orange", alpha=0.9, size=1.5) +
-  ggtitle("Mean totochol by cursmoke status")+facet_wrap(~sex)
+  ggtitle("Mean totochol by gender")+facet_wrap(~sex)
 
 
 frmgham %>%
@@ -264,7 +229,7 @@ frmgham %>%
   ggplot(.)+
   geom_bar(aes(x=cursmoke, y=mean), stat="identity", fill="forestgreen", alpha=0.5) +
   geom_errorbar( aes(x=cursmoke, ymin=mean-ic, ymax=mean+ic), width=0.4, colour="orange", alpha=0.9, size=1.5) +
-  ggtitle("Mean totochol by cursmoke status")+facet_wrap(~prevchd)
+  ggtitle("Mean totochol by prevalence of coronary heart disease ")+facet_wrap(~prevchd)
 
 frmgham %>%
   mutate(cursmoke=as.factor(cursmoke)) %>% 
@@ -279,7 +244,7 @@ frmgham %>%
   ggplot(.)+
   geom_bar(aes(x=cursmoke, y=mean), stat="identity", fill="forestgreen", alpha=0.5) +
   geom_errorbar( aes(x=cursmoke, ymin=mean-ic, ymax=mean+ic), width=0.4, colour="orange", alpha=0.9, size=1.5) +
-  ggtitle("Mean totochol by cursmoke status")+facet_wrap(~age_ctg)
+  ggtitle("Mean totochol by age category")+facet_wrap(~age_ctg)
 
 
 
@@ -296,64 +261,17 @@ frmgham %>%
   ggplot(.)+
   geom_bar(aes(x=cursmoke, y=mean), stat="identity", fill="forestgreen", alpha=0.5) +
   geom_errorbar( aes(x=cursmoke, ymin=mean-ic, ymax=mean+ic), width=0.4, colour="orange", alpha=0.9, size=1.5) +
-  ggtitle("Mean totochol by cursmoke status")+facet_wrap(~bmi_cat)
-```
-
-(2)hdlc
-
-```{r}
-frmgham%>% 
-  select(randid,totchol_ctg, hdlc, cursmoke) %>% 
-  mutate(hdlc_ctg = cut(hdlc,breaks=c(-Inf, 40, 60, Inf), labels = c("Low", "Normal","Good"))) %>% 
-  na.omit() %>% 
-  group_by(totchol_ctg,hdlc_ctg) %>% 
-  dplyr::summarise(percent.currentsmoke = sum(cursmoke)/n(),
-                   n = n())
-
-frmgham %>%
-  select(randid,totchol_ctg, hdlc, cursmoke) %>% 
-  mutate(hdlc_ctg = cut(hdlc,breaks=c(-Inf, 40, 60, Inf), labels = c("Low", "Normal","Good"))) %>% 
-  na.omit() %>%  
-  group_by(totchol_ctg,hdlc_ctg) %>%
-  summarise(num.currentsmoke = sum(cursmoke)) %>% 
-  ggplot(., aes(as.factor(totchol_ctg),num.currentsmoke)) +
-    geom_bar(stat = "identity")+
-  facet_wrap(~hdlc_ctg)
+  ggtitle("Mean totochol by BMI category")+facet_wrap(~bmi_cat)
 ```
 
 
-(3)ldlc
 
-```{r}
-frmgham%>% 
-  select(randid,totchol_ctg, ldlc, cursmoke) %>% 
-  mutate(ldlc_ctg = ifelse(ldlc>=130, "High","Ideal")) %>% 
-  na.omit() %>% 
-  group_by(totchol_ctg,ldlc_ctg) %>% 
-  dplyr::summarise(percent.currentsmoke = sum(cursmoke)/n(),
-                   n = n())
-
-
-frmgham %>%
-  select(randid,totchol_ctg, ldlc, cursmoke) %>% 
-  mutate(ldlc_ctg = ifelse(ldlc>=130, "High","Ideal")) %>% 
-  na.omit()  %>%  
-  group_by(totchol_ctg,ldlc_ctg) %>%
-  summarise(num.currentsmoke = sum(cursmoke)) %>% 
-  ggplot(., aes(as.factor(totchol_ctg),num.currentsmoke)) +
-    geom_bar(stat = "identity")+
-  facet_wrap(~ldlc_ctg)
-```
-
-From the table above, we found age, ldlc and hdlc are confounders. 
-
-## model fitting
+## bootstrap for confidence interval
 
 
 ```{r}
 b_par<-bootMer(x=totchol13,FUN=fixef,nsim=200)
 boot::boot.ci(b_par,type="basic",index=2)
-fixef(totchol6)
 ```
 
 
