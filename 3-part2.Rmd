@@ -80,9 +80,15 @@ frmgham %>%
   ggplot(., aes(x=cursmoke, y=totchol)) +
     geom_bar(stat="identity") +ggtitle("Unadjusted relationship between current smoking status and serum total cholesterol")
 
+
 frmgham %>% 
-  ggplot(., aes(x=as.factor(period), y=totchol,group=randid)) +
-  geom_line() +ggtitle("Unadjusted relationship between current smoking status and serum total cholesterol")+facet_wrap(~factor(cursmoke))
+  ggplot(., aes(x=as.factor(cursmoke), y=totchol)) +
+  geom_boxplot() +ggtitle("Serum total cholesterol by current smoking status, Boxplot")
+
+
+frmgham %>% 
+  ggplot(., aes(x=as.factor(cursmoke), y=totchol)) +
+  geom_violin(aes(fill = as.factor(cursmoke))) +ggtitle("Serum total cholesterol by current smoking status, Violin")
 #https://medlineplus.gov/cholesterollevelswhatyouneedtoknow.html
 #categorized totchol based on link above
 
@@ -93,6 +99,15 @@ table(frmgham$totchol_ctg)
 # 124 normal total chol 
 # 11503 abnormal total chol
 ```
+
+##spaghetti plot
+
+```{r}
+frmgham %>% 
+  select(randid, cursmoke, totchol, )
+```
+
+
 
 ## Finding confounders
 
@@ -106,8 +121,8 @@ frmgham= frmgham %>%
 a=as.data.frame(lapply(frmgham[,c("cursmoke","age","sex","prevchd")], as.numeric))
 cor(a)
 totchol1 <- 
-  gls(totchol ~ as.factor(cursmoke)+age+sex+prevchd, 
-      data = frmgham,na.action=na.omit)
+  gls(totchol ~ as.factor(cursmoke)*period+sex+bmi+age, 
+      data = frmgham,na.action=na.omit, corr = corCompSymm(, form= ~ 1 | randid) )
 
 totchol <- 
   gls(totchol ~ as.factor(cursmoke), data = frmgham,na.action=na.omit)
@@ -124,15 +139,39 @@ totchol6=lmer(totchol ~ as.factor(cursmoke)+age+sex+prevchd+bmi+(1|randid),
               data=frmgham)
 AIC(totchol6)
 
+frmgham=frmgham %>% 
+  mutate(period = period-1)
+
 totchol7=lmer(totchol ~ as.factor(cursmoke)*sex+bmi+age+prevchd+(1|randid),
               data=frmgham)
 totchol8=lmer(totchol ~ as.factor(cursmoke)*sex+bmi+age+(1|randid),
               data=frmgham)
 totchol9=lmer(totchol ~ as.factor(cursmoke)+sex+bmi+age+(1|randid),
               data=frmgham)
-RLRsim::exactRLRT(totchol8)
-anova(totchol, totchol8)
-summary(totchol9)
+totchol11=lmer(totchol ~ as.factor(cursmoke)*as.factor(period)+sex+bmi+age+(1|randid),
+              data=frmgham)
+totchol10=lmer(totchol ~ as.factor(cursmoke)+as.factor(period)+sex+bmi+age+(1|randid),
+              data=frmgham)
+
+totchol12=lmer(totchol ~ as.factor(cursmoke)+as.factor(period)+bmi+age+(1|randid),
+              data=frmgham)
+
+totchol13=lmer(totchol ~ as.factor(cursmoke)*sex+bmi+age+prevstrk+prevchd+(1|randid),
+              data=frmgham)
+
+
+
+totchol14=lmer(totchol ~ as.factor(cursmoke)+sex+age+bmi+prevstrk+prevchd+(1|randid),
+               data=frmgham)
+summary(totchol13)
+AIC(totchol10)
+summary(totchol10)
+summary(totchol11)
+anova(totchol13,totchol14)
+
+sig_ranef=RLRsim::exactRLRT(totchol13, seed=1)
+anova(totchol10, totchol11)
+summary(totchol10)
 summary(totchol8)
 
 AIC(totchol7)
@@ -312,12 +351,11 @@ From the table above, we found age, ldlc and hdlc are confounders.
 
 
 ```{r}
-b_par<-bootMer(x=totchol8,FUN=fixef,nsim=200)
-boot::boot.ci(b_par,type="basic",index=6)
+b_par<-bootMer(x=totchol13,FUN=fixef,nsim=200)
+boot::boot.ci(b_par,type="basic",index=2)
 fixef(totchol6)
 ```
 
-#Multilevel bootstrapping
 
 
 
