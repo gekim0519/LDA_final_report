@@ -73,28 +73,41 @@ Descriptive statistics
     ##  3rd Qu.:8766   3rd Qu.:8766   3rd Qu.:8766   3rd Qu.:8766  
     ##  Max.   :8766   Max.   :8766   Max.   :8766   Max.   :8766  
     ##                                                             
-    ##     timestrk       timecvd        timedth        timehyp      age_ctg    
-    ##  Min.   :   0   Min.   :   0   Min.   :  26   Min.   :   0   35-  :  24  
-    ##  1st Qu.:7295   1st Qu.:6004   1st Qu.:7798   1st Qu.:   0   35-44:1785  
-    ##  Median :8766   Median :8766   Median :8766   Median :2429   45-54:4095  
-    ##  Mean   :7661   Mean   :7166   Mean   :7854   Mean   :3599   55-64:3701  
-    ##  3rd Qu.:8766   3rd Qu.:8766   3rd Qu.:8766   3rd Qu.:7329   65-74:1819  
-    ##  Max.   :8766   Max.   :8766   Max.   :8766   Max.   :8766   75+  : 203  
-    ##                                                                          
-    ##     sysbp_ctg                  diabp_ctg   
-    ##  normal  :2746   normal and elevated:4367  
-    ##  crisis  : 529   crisis             :  54  
-    ##  elevated:2351   stage1             :4180  
-    ##  stage1  :2066   stage2             :3026  
-    ##  stage2  :3935                             
-    ##                                            
+    ##     timestrk       timecvd        timedth        timehyp    
+    ##  Min.   :   0   Min.   :   0   Min.   :  26   Min.   :   0  
+    ##  1st Qu.:7295   1st Qu.:6004   1st Qu.:7798   1st Qu.:   0  
+    ##  Median :8766   Median :8766   Median :8766   Median :2429  
+    ##  Mean   :7661   Mean   :7166   Mean   :7854   Mean   :3599  
+    ##  3rd Qu.:8766   3rd Qu.:8766   3rd Qu.:8766   3rd Qu.:7329  
+    ##  Max.   :8766   Max.   :8766   Max.   :8766   Max.   :8766  
     ## 
 
 missing values
 ==============
 
-Impute missing values using MICE package
-========================================
+    ## # A tibble: 3 x 2
+    ##   period sum_na_period
+    ##    <int>         <int>
+    ## 1      1             0
+    ## 2      2             0
+    ## 3      3             0
+
+    ## 
+    ##    1    2    3 
+    ##  447  781 3206
+
+    ## [1] 4434
+
+    ##     ldlc     hdlc  glucose   bpmeds  totchol     educ  cigpday      bmi 
+    ##     8601     8600     1440      593      409      295       79       52 
+    ## heartrte cursmoke   randid      sex      age    sysbp    diabp diabetes 
+    ##        6        0        0        0        0        0        0        0 
+    ##  prevchd   prevap   prevmi prevstrk  prevhyp     time   period    death 
+    ##        0        0        0        0        0        0        0        0 
+    ##   angina   hospmi  mi_fchd   anychd   stroke      cvd hyperten   timeap 
+    ##        0        0        0        0        0        0        0        0 
+    ##   timemi timemifc  timechd timestrk  timecvd  timedth  timehyp 
+    ##        0        0        0        0        0        0        0
 
 -   The output tells us that 2243 samples are complete, 7077 samples miss both hdlc and ldlc, 4 samples miss only the glucose value and so on.
 
@@ -107,7 +120,7 @@ Impute missing values using MICE package
 
 ### cursmoke vs age\_ctg without adjustment
 
-![](longi_final_report_files/figure-markdown_github/unnamed-chunk-5-1.png)
+![](longi_final_report_files/figure-markdown_github/unnamed-chunk-3-1.png)
 
 Finding confounders
 -------------------
@@ -301,21 +314,7 @@ Finding confounders
     ## 
     ## variable       OR   lower_CI   upper_CI   potconf_OR  confounder 
     ## ---------  ------  ---------  ---------  -----------  -----------
-    ## age         0.874      0.864      0.885        0.861  TRUE       
-    ## 
-    ## $sysbp_ctg
-    ## 
-    ## 
-    ## variable       OR   lower_CI   upper_CI   potconf_OR  confounder 
-    ## ---------  ------  ---------  ---------  -----------  -----------
-    ## age         0.874      0.864      0.885        0.879  FALSE      
-    ## 
-    ## $diabp_ctg
-    ## 
-    ## 
-    ## variable       OR   lower_CI   upper_CI   potconf_OR  confounder 
-    ## ---------  ------  ---------  ---------  -----------  -----------
-    ## age         0.874      0.864      0.885        0.875  FALSE
+    ## age         0.874      0.864      0.885        0.861  TRUE
 
 Finding modifier
 ----------------
@@ -324,19 +323,19 @@ Finding modifier
 
     ## Warning in prop.test(4L, 7L): Chi-squared approximation may be incorrect
 
-![](longi_final_report_files/figure-markdown_github/unnamed-chunk-7-1.png)![](longi_final_report_files/figure-markdown_github/unnamed-chunk-7-2.png)![](longi_final_report_files/figure-markdown_github/unnamed-chunk-7-3.png)![](longi_final_report_files/figure-markdown_github/unnamed-chunk-7-4.png)![](longi_final_report_files/figure-markdown_github/unnamed-chunk-7-5.png)![](longi_final_report_files/figure-markdown_github/unnamed-chunk-7-6.png)
+![](longi_final_report_files/figure-markdown_github/unnamed-chunk-5-1.png)![](longi_final_report_files/figure-markdown_github/unnamed-chunk-5-2.png)![](longi_final_report_files/figure-markdown_github/unnamed-chunk-5-3.png)![](longi_final_report_files/figure-markdown_github/unnamed-chunk-5-4.png)![](longi_final_report_files/figure-markdown_github/unnamed-chunk-5-5.png)![](longi_final_report_files/figure-markdown_github/unnamed-chunk-5-6.png)
 
     ## Warning in prop.test(3L, 5L): Chi-squared approximation may be incorrect
 
     ## Warning in prop.test(3L, 5L): Chi-squared approximation may be incorrect
 
-![](longi_final_report_files/figure-markdown_github/unnamed-chunk-7-7.png)
+![](longi_final_report_files/figure-markdown_github/unnamed-chunk-5-7.png)
 
     ## Warning in prop.test(0L, 1L): Chi-squared approximation may be incorrect
 
     ## Warning in prop.test(0L, 1L): Chi-squared approximation may be incorrect
 
-![](longi_final_report_files/figure-markdown_github/unnamed-chunk-7-8.png)
+![](longi_final_report_files/figure-markdown_github/unnamed-chunk-5-8.png)
 
 Fit model using glmer
 ---------------------
@@ -400,6 +399,114 @@ Fit model using glmer
     ## age:sex2          
     ## age:prvhyp1  0.013
 
+    ## Generalized linear mixed model fit by maximum likelihood (Adaptive
+    ##   Gauss-Hermite Quadrature, nAGQ = 0) [glmerMod]
+    ##  Family: binomial  ( logit )
+    ## Formula: cursmoke ~ age * sex + educ + heartrte + hdlc + ldlc + age *  
+    ##     prevhyp + (1 | randid)
+    ##    Data: frmgham
+    ## 
+    ##      AIC      BIC   logLik deviance df.resid 
+    ##   3550.2   3628.1  -1762.1   3524.2     2936 
+    ## 
+    ## Scaled residuals: 
+    ##     Min      1Q  Median      3Q     Max 
+    ## -1.6306 -0.7367 -0.4975  1.0269  3.3039 
+    ## 
+    ## Random effects:
+    ##  Groups Name        Variance Std.Dev.
+    ##  randid (Intercept) 0.004022 0.06342 
+    ## Number of obs: 2949, groups:  randid, 2949
+    ## 
+    ## Fixed effects:
+    ##                Estimate Std. Error z value Pr(>|z|)    
+    ## (Intercept)   0.8260706  0.6896941   1.198 0.231020    
+    ## age          -0.0400784  0.0100435  -3.990 6.59e-05 ***
+    ## sex2          1.7330410  0.6326019   2.740 0.006152 ** 
+    ## educ2         0.1809147  0.0988817   1.830 0.067309 .  
+    ## educ3        -0.1575456  0.1221518  -1.290 0.197137    
+    ## educ4        -0.1140740  0.1339943  -0.851 0.394584    
+    ## heartrte      0.0166799  0.0033241   5.018 5.22e-07 ***
+    ## hdlc         -0.0005108  0.0028173  -0.181 0.856131    
+    ## ldlc          0.0004411  0.0008961   0.492 0.622528    
+    ## prevhyp1     -0.1977370  0.6505668  -0.304 0.761169    
+    ## age:sex2     -0.0356209  0.0106157  -3.356 0.000792 ***
+    ## age:prevhyp1 -0.0032500  0.0110012  -0.295 0.767671    
+    ## ---
+    ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+    ## 
+    ## Correlation of Fixed Effects:
+    ##             (Intr) age    sex2   educ2  educ3  educ4  hertrt hdlc   ldlc  
+    ## age         -0.876                                                        
+    ## sex2        -0.503  0.535                                                 
+    ## educ2       -0.142  0.107  0.013                                          
+    ## educ3       -0.057  0.014 -0.030  0.385                                   
+    ## educ4       -0.105  0.045  0.022  0.347  0.274                            
+    ## heartrte    -0.360  0.013  0.027 -0.020  0.021  0.059                     
+    ## hdlc        -0.236  0.022 -0.018 -0.023 -0.043 -0.050 -0.005              
+    ## ldlc        -0.265  0.034  0.071 -0.015 -0.016 -0.017 -0.043  0.190       
+    ## prevhyp1    -0.541  0.643  0.042 -0.025 -0.045 -0.018 -0.009  0.014 -0.032
+    ## age:sex2     0.507 -0.529 -0.990 -0.017  0.020 -0.011 -0.040 -0.029 -0.093
+    ## age:prvhyp1  0.550 -0.656 -0.028  0.025  0.048  0.023 -0.009 -0.010  0.026
+    ##             prvhy1 ag:sx2
+    ## age                      
+    ## sex2                     
+    ## educ2                    
+    ## educ3                    
+    ## educ4                    
+    ## heartrte                 
+    ## hdlc                     
+    ## ldlc                     
+    ## prevhyp1                 
+    ## age:sex2    -0.028       
+    ## age:prvhyp1 -0.991  0.014
+
+    ## Generalized linear mixed model fit by maximum likelihood (Adaptive
+    ##   Gauss-Hermite Quadrature, nAGQ = 0) [glmerMod]
+    ##  Family: poisson  ( log )
+    ## Formula: cigpday ~ age * sex + educ + heartrte + age * prevhyp + (1 |  
+    ##     randid)
+    ##    Data: frmgham_smoker
+    ## 
+    ##      AIC      BIC   logLik deviance df.resid 
+    ##  35492.2  35563.5 -17735.1  35470.2     4820 
+    ## 
+    ## Scaled residuals: 
+    ##     Min      1Q  Median      3Q     Max 
+    ## -4.2883 -0.6765 -0.0172  0.4440  5.9212 
+    ## 
+    ## Random effects:
+    ##  Groups Name        Variance Std.Dev.
+    ##  randid (Intercept) 0.4383   0.662   
+    ## Number of obs: 4831, groups:  randid, 2237
+    ## 
+    ## Fixed effects:
+    ##                Estimate Std. Error z value Pr(>|z|)    
+    ## (Intercept)   2.6313565  0.0699624  37.611  < 2e-16 ***
+    ## age           0.0029277  0.0011204   2.613 0.008974 ** 
+    ## sex2         -0.9198080  0.0812947 -11.314  < 2e-16 ***
+    ## educ2         0.1034282  0.0350326   2.952 0.003154 ** 
+    ## educ3         0.0481747  0.0446752   1.078 0.280886    
+    ## educ4         0.0057701  0.0484108   0.119 0.905124    
+    ## heartrte      0.0017845  0.0004722   3.779 0.000157 ***
+    ## prevhyp1      0.4918777  0.0701004   7.017 2.27e-12 ***
+    ## age:sex2      0.0085697  0.0014519   5.903 3.58e-09 ***
+    ## age:prevhyp1 -0.0089792  0.0012799  -7.016 2.29e-12 ***
+    ## ---
+    ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+    ## 
+    ## Correlation of Fixed Effects:
+    ##             (Intr) age    sex2   educ2  educ3  educ4  hertrt prvhy1 ag:sx2
+    ## age         -0.771                                                        
+    ## sex2        -0.492  0.538                                                 
+    ## educ2       -0.241  0.054 -0.031                                          
+    ## educ3       -0.169  0.024 -0.051  0.363                                   
+    ## educ4       -0.192  0.026  0.010  0.317  0.247                            
+    ## heartrte    -0.435 -0.096 -0.044 -0.008  0.000  0.015                     
+    ## prevhyp1    -0.288  0.362  0.077 -0.019 -0.012  0.002 -0.041              
+    ## age:sex2     0.465 -0.574 -0.929 -0.013 -0.001 -0.002  0.036 -0.067       
+    ## age:prvhyp1  0.336 -0.432 -0.074  0.016  0.012 -0.003  0.031 -0.979  0.065
+
 1.  Is there a relationship between the number of cigarettes smoked per day and age? Does this relationship differ by sex?
 
 While answering these questions, please account for any confounders that you have evidence may impact the relationship between age and sex with smoking.
@@ -408,14 +515,14 @@ While answering these questions, please account for any confounders that you hav
 
     ## Warning: Removed 79 rows containing missing values (geom_point).
 
-![](longi_final_report_files/figure-markdown_github/unnamed-chunk-9-1.png)
+![](longi_final_report_files/figure-markdown_github/unnamed-chunk-8-1.png)
 
     ##    Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
     ##    1.00   10.00   20.00   19.25   25.00   90.00
 
     ## `stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
 
-![](longi_final_report_files/figure-markdown_github/unnamed-chunk-10-1.png)
+![](longi_final_report_files/figure-markdown_github/unnamed-chunk-9-1.png)
 
     ## Beginning Cgee S-function, @(#) geeformula.q 4.13 98/01/27
 
@@ -588,21 +695,194 @@ While answering these questions, please account for any confounders that you hav
     ## age_ctg65-74   age_ctg75+ 
     ##   0.18781581  -0.22088289
 
-    ## Beginning Cgee S-function, @(#) geeformula.q 4.13 98/01/27
-    ## running glm to get initial regression estimate
-
-    ##       (Intercept)               age   sysbp_ctgcrisis sysbp_ctgelevated 
-    ##        0.80170439       -0.02876858       -0.21640033       -0.13036911 
-    ##   sysbp_ctgstage1   sysbp_ctgstage2 
-    ##       -0.10525143       -0.15981715
-
-    ## Beginning Cgee S-function, @(#) geeformula.q 4.13 98/01/27
-    ## running glm to get initial regression estimate
-
-    ##     (Intercept)             age diabp_ctgcrisis diabp_ctgstage1 
-    ##      0.86310716     -0.03044677     -0.16707868     -0.10021979 
-    ## diabp_ctgstage2 
-    ##     -0.15973730
+    ## $cursmoke
+    ## 
+    ## 
+    ## variable       OR   lower_CI   upper_CI   potconf_OR  confounder 
+    ## ---------  ------  ---------  ---------  -----------  -----------
+    ## age         0.975      0.973      0.978        0.973  FALSE      
+    ## 
+    ## $totchol
+    ## 
+    ## 
+    ## variable       OR   lower_CI   upper_CI   potconf_OR  confounder 
+    ## ---------  ------  ---------  ---------  -----------  -----------
+    ## age         0.975      0.973      0.978        0.973  FALSE      
+    ## 
+    ## $sysbp
+    ## 
+    ## 
+    ## variable       OR   lower_CI   upper_CI   potconf_OR  confounder 
+    ## ---------  ------  ---------  ---------  -----------  -----------
+    ## age         0.975      0.973      0.978        0.974  FALSE      
+    ## 
+    ## $diabp
+    ## 
+    ## 
+    ## variable       OR   lower_CI   upper_CI   potconf_OR  confounder 
+    ## ---------  ------  ---------  ---------  -----------  -----------
+    ## age         0.975      0.973      0.978        0.974  FALSE      
+    ## 
+    ## $bmi
+    ## 
+    ## 
+    ## variable       OR   lower_CI   upper_CI   potconf_OR  confounder 
+    ## ---------  ------  ---------  ---------  -----------  -----------
+    ## age         0.975      0.973      0.978        0.974  FALSE      
+    ## 
+    ## $diabetes
+    ## 
+    ## 
+    ## variable       OR   lower_CI   upper_CI   potconf_OR  confounder 
+    ## ---------  ------  ---------  ---------  -----------  -----------
+    ## age         0.975      0.973      0.978        0.973  FALSE      
+    ## 
+    ## $bpmeds
+    ## 
+    ## 
+    ## variable       OR   lower_CI   upper_CI   potconf_OR  confounder 
+    ## ---------  ------  ---------  ---------  -----------  -----------
+    ## age         0.975      0.973      0.978        0.974  FALSE      
+    ## 
+    ## $heartrte
+    ## 
+    ## 
+    ## variable       OR   lower_CI   upper_CI   potconf_OR  confounder 
+    ## ---------  ------  ---------  ---------  -----------  -----------
+    ## age         0.975      0.973      0.978        0.973  TRUE       
+    ## 
+    ## $glucose
+    ## 
+    ## 
+    ## variable       OR   lower_CI   upper_CI   potconf_OR  confounder 
+    ## ---------  ------  ---------  ---------  -----------  -----------
+    ## age         0.975      0.973      0.978        0.973  FALSE      
+    ## 
+    ## $educ
+    ## 
+    ## 
+    ## variable       OR   lower_CI   upper_CI   potconf_OR  confounder 
+    ## ---------  ------  ---------  ---------  -----------  -----------
+    ## age         0.975      0.973      0.978        0.973  FALSE      
+    ## 
+    ## $prevchd
+    ## 
+    ## 
+    ## variable       OR   lower_CI   upper_CI   potconf_OR  confounder 
+    ## ---------  ------  ---------  ---------  -----------  -----------
+    ## age         0.975      0.973      0.978        0.974  FALSE      
+    ## 
+    ## $prevap
+    ## 
+    ## 
+    ## variable       OR   lower_CI   upper_CI   potconf_OR  confounder 
+    ## ---------  ------  ---------  ---------  -----------  -----------
+    ## age         0.975      0.973      0.978        0.974  FALSE      
+    ## 
+    ## $prevmi
+    ## 
+    ## 
+    ## variable       OR   lower_CI   upper_CI   potconf_OR  confounder 
+    ## ---------  ------  ---------  ---------  -----------  -----------
+    ## age         0.975      0.973      0.978        0.973  FALSE      
+    ## 
+    ## $prevstrk
+    ## 
+    ## 
+    ## variable       OR   lower_CI   upper_CI   potconf_OR  confounder 
+    ## ---------  ------  ---------  ---------  -----------  -----------
+    ## age         0.975      0.973      0.978        0.973  FALSE      
+    ## 
+    ## $prevhyp
+    ## 
+    ## 
+    ## variable       OR   lower_CI   upper_CI   potconf_OR  confounder 
+    ## ---------  ------  ---------  ---------  -----------  -----------
+    ## age         0.975      0.973      0.978        0.975  FALSE      
+    ## 
+    ## $period
+    ## 
+    ## 
+    ## variable       OR   lower_CI   upper_CI   potconf_OR  confounder 
+    ## ---------  ------  ---------  ---------  -----------  -----------
+    ## age         0.975      0.973      0.978        0.972  TRUE       
+    ## 
+    ## $hdlc
+    ## 
+    ## 
+    ## variable       OR   lower_CI   upper_CI   potconf_OR  confounder 
+    ## ---------  ------  ---------  ---------  -----------  -----------
+    ## age         0.975      0.973      0.978        0.957  TRUE       
+    ## 
+    ## $ldlc
+    ## 
+    ## 
+    ## variable       OR   lower_CI   upper_CI   potconf_OR  confounder 
+    ## ---------  ------  ---------  ---------  -----------  -----------
+    ## age         0.975      0.973      0.978        0.957  TRUE       
+    ## 
+    ## $death
+    ## 
+    ## 
+    ## variable       OR   lower_CI   upper_CI   potconf_OR  confounder 
+    ## ---------  ------  ---------  ---------  -----------  -----------
+    ## age         0.975      0.973      0.978        0.971  TRUE       
+    ## 
+    ## $angina
+    ## 
+    ## 
+    ## variable       OR   lower_CI   upper_CI   potconf_OR  confounder 
+    ## ---------  ------  ---------  ---------  -----------  -----------
+    ## age         0.975      0.973      0.978        0.973  FALSE      
+    ## 
+    ## $hospmi
+    ## 
+    ## 
+    ## variable       OR   lower_CI   upper_CI   potconf_OR  confounder 
+    ## ---------  ------  ---------  ---------  -----------  -----------
+    ## age         0.975      0.973      0.978        0.973  FALSE      
+    ## 
+    ## $mi_fchd
+    ## 
+    ## 
+    ## variable       OR   lower_CI   upper_CI   potconf_OR  confounder 
+    ## ---------  ------  ---------  ---------  -----------  -----------
+    ## age         0.975      0.973      0.978        0.973  FALSE      
+    ## 
+    ## $anychd
+    ## 
+    ## 
+    ## variable       OR   lower_CI   upper_CI   potconf_OR  confounder 
+    ## ---------  ------  ---------  ---------  -----------  -----------
+    ## age         0.975      0.973      0.978        0.973  FALSE      
+    ## 
+    ## $stroke
+    ## 
+    ## 
+    ## variable       OR   lower_CI   upper_CI   potconf_OR  confounder 
+    ## ---------  ------  ---------  ---------  -----------  -----------
+    ## age         0.975      0.973      0.978        0.973  FALSE      
+    ## 
+    ## $cvd
+    ## 
+    ## 
+    ## variable       OR   lower_CI   upper_CI   potconf_OR  confounder 
+    ## ---------  ------  ---------  ---------  -----------  -----------
+    ## age         0.975      0.973      0.978        0.972  TRUE       
+    ## 
+    ## $hyperten
+    ## 
+    ## 
+    ## variable       OR   lower_CI   upper_CI   potconf_OR  confounder 
+    ## ---------  ------  ---------  ---------  -----------  -----------
+    ## age         0.975      0.973      0.978        0.974  FALSE      
+    ## 
+    ## $age_ctg
+    ## 
+    ## 
+    ## variable       OR   lower_CI   upper_CI   potconf_OR  confounder 
+    ## ---------  ------  ---------  ---------  -----------  -----------
+    ## age         0.975      0.973      0.978        0.972  TRUE
 
     ## $cursmoke
     ## 
@@ -791,224 +1071,7 @@ While answering these questions, please account for any confounders that you hav
     ## 
     ## variable       OR   lower_CI   upper_CI   potconf_OR  confounder 
     ## ---------  ------  ---------  ---------  -----------  -----------
-    ## age         0.975      0.973      0.978        0.972  TRUE       
-    ## 
-    ## $sysbp_ctg
-    ## 
-    ## 
-    ## variable       OR   lower_CI   upper_CI   potconf_OR  confounder 
-    ## ---------  ------  ---------  ---------  -----------  -----------
-    ## age         0.975      0.973      0.978        0.974  FALSE      
-    ## 
-    ## $diabp_ctg
-    ## 
-    ## 
-    ## variable       OR   lower_CI   upper_CI   potconf_OR  confounder 
-    ## ---------  ------  ---------  ---------  -----------  -----------
-    ## age         0.975      0.973      0.978        0.974  FALSE
-
-    ## $cursmoke
-    ## 
-    ## 
-    ## variable       OR   lower_CI   upper_CI   potconf_OR  confounder 
-    ## ---------  ------  ---------  ---------  -----------  -----------
-    ## age         0.975      0.973      0.978        0.973  FALSE      
-    ## 
-    ## $totchol
-    ## 
-    ## 
-    ## variable       OR   lower_CI   upper_CI   potconf_OR  confounder 
-    ## ---------  ------  ---------  ---------  -----------  -----------
-    ## age         0.975      0.973      0.978        0.973  FALSE      
-    ## 
-    ## $sysbp
-    ## 
-    ## 
-    ## variable       OR   lower_CI   upper_CI   potconf_OR  confounder 
-    ## ---------  ------  ---------  ---------  -----------  -----------
-    ## age         0.975      0.973      0.978        0.974  FALSE      
-    ## 
-    ## $diabp
-    ## 
-    ## 
-    ## variable       OR   lower_CI   upper_CI   potconf_OR  confounder 
-    ## ---------  ------  ---------  ---------  -----------  -----------
-    ## age         0.975      0.973      0.978        0.974  FALSE      
-    ## 
-    ## $bmi
-    ## 
-    ## 
-    ## variable       OR   lower_CI   upper_CI   potconf_OR  confounder 
-    ## ---------  ------  ---------  ---------  -----------  -----------
-    ## age         0.975      0.973      0.978        0.974  FALSE      
-    ## 
-    ## $diabetes
-    ## 
-    ## 
-    ## variable       OR   lower_CI   upper_CI   potconf_OR  confounder 
-    ## ---------  ------  ---------  ---------  -----------  -----------
-    ## age         0.975      0.973      0.978        0.973  FALSE      
-    ## 
-    ## $bpmeds
-    ## 
-    ## 
-    ## variable       OR   lower_CI   upper_CI   potconf_OR  confounder 
-    ## ---------  ------  ---------  ---------  -----------  -----------
-    ## age         0.975      0.973      0.978        0.974  FALSE      
-    ## 
-    ## $heartrte
-    ## 
-    ## 
-    ## variable       OR   lower_CI   upper_CI   potconf_OR  confounder 
-    ## ---------  ------  ---------  ---------  -----------  -----------
-    ## age         0.975      0.973      0.978        0.973  TRUE       
-    ## 
-    ## $glucose
-    ## 
-    ## 
-    ## variable       OR   lower_CI   upper_CI   potconf_OR  confounder 
-    ## ---------  ------  ---------  ---------  -----------  -----------
-    ## age         0.975      0.973      0.978        0.973  FALSE      
-    ## 
-    ## $educ
-    ## 
-    ## 
-    ## variable       OR   lower_CI   upper_CI   potconf_OR  confounder 
-    ## ---------  ------  ---------  ---------  -----------  -----------
-    ## age         0.975      0.973      0.978        0.973  FALSE      
-    ## 
-    ## $prevchd
-    ## 
-    ## 
-    ## variable       OR   lower_CI   upper_CI   potconf_OR  confounder 
-    ## ---------  ------  ---------  ---------  -----------  -----------
-    ## age         0.975      0.973      0.978        0.974  FALSE      
-    ## 
-    ## $prevap
-    ## 
-    ## 
-    ## variable       OR   lower_CI   upper_CI   potconf_OR  confounder 
-    ## ---------  ------  ---------  ---------  -----------  -----------
-    ## age         0.975      0.973      0.978        0.974  FALSE      
-    ## 
-    ## $prevmi
-    ## 
-    ## 
-    ## variable       OR   lower_CI   upper_CI   potconf_OR  confounder 
-    ## ---------  ------  ---------  ---------  -----------  -----------
-    ## age         0.975      0.973      0.978        0.973  FALSE      
-    ## 
-    ## $prevstrk
-    ## 
-    ## 
-    ## variable       OR   lower_CI   upper_CI   potconf_OR  confounder 
-    ## ---------  ------  ---------  ---------  -----------  -----------
-    ## age         0.975      0.973      0.978        0.973  FALSE      
-    ## 
-    ## $prevhyp
-    ## 
-    ## 
-    ## variable       OR   lower_CI   upper_CI   potconf_OR  confounder 
-    ## ---------  ------  ---------  ---------  -----------  -----------
-    ## age         0.975      0.973      0.978        0.975  FALSE      
-    ## 
-    ## $period
-    ## 
-    ## 
-    ## variable       OR   lower_CI   upper_CI   potconf_OR  confounder 
-    ## ---------  ------  ---------  ---------  -----------  -----------
-    ## age         0.975      0.973      0.978        0.972  TRUE       
-    ## 
-    ## $hdlc
-    ## 
-    ## 
-    ## variable       OR   lower_CI   upper_CI   potconf_OR  confounder 
-    ## ---------  ------  ---------  ---------  -----------  -----------
-    ## age         0.975      0.973      0.978        0.957  TRUE       
-    ## 
-    ## $ldlc
-    ## 
-    ## 
-    ## variable       OR   lower_CI   upper_CI   potconf_OR  confounder 
-    ## ---------  ------  ---------  ---------  -----------  -----------
-    ## age         0.975      0.973      0.978        0.957  TRUE       
-    ## 
-    ## $death
-    ## 
-    ## 
-    ## variable       OR   lower_CI   upper_CI   potconf_OR  confounder 
-    ## ---------  ------  ---------  ---------  -----------  -----------
-    ## age         0.975      0.973      0.978        0.971  TRUE       
-    ## 
-    ## $angina
-    ## 
-    ## 
-    ## variable       OR   lower_CI   upper_CI   potconf_OR  confounder 
-    ## ---------  ------  ---------  ---------  -----------  -----------
-    ## age         0.975      0.973      0.978        0.973  FALSE      
-    ## 
-    ## $hospmi
-    ## 
-    ## 
-    ## variable       OR   lower_CI   upper_CI   potconf_OR  confounder 
-    ## ---------  ------  ---------  ---------  -----------  -----------
-    ## age         0.975      0.973      0.978        0.973  FALSE      
-    ## 
-    ## $mi_fchd
-    ## 
-    ## 
-    ## variable       OR   lower_CI   upper_CI   potconf_OR  confounder 
-    ## ---------  ------  ---------  ---------  -----------  -----------
-    ## age         0.975      0.973      0.978        0.973  FALSE      
-    ## 
-    ## $anychd
-    ## 
-    ## 
-    ## variable       OR   lower_CI   upper_CI   potconf_OR  confounder 
-    ## ---------  ------  ---------  ---------  -----------  -----------
-    ## age         0.975      0.973      0.978        0.973  FALSE      
-    ## 
-    ## $stroke
-    ## 
-    ## 
-    ## variable       OR   lower_CI   upper_CI   potconf_OR  confounder 
-    ## ---------  ------  ---------  ---------  -----------  -----------
-    ## age         0.975      0.973      0.978        0.973  FALSE      
-    ## 
-    ## $cvd
-    ## 
-    ## 
-    ## variable       OR   lower_CI   upper_CI   potconf_OR  confounder 
-    ## ---------  ------  ---------  ---------  -----------  -----------
-    ## age         0.975      0.973      0.978        0.972  TRUE       
-    ## 
-    ## $hyperten
-    ## 
-    ## 
-    ## variable       OR   lower_CI   upper_CI   potconf_OR  confounder 
-    ## ---------  ------  ---------  ---------  -----------  -----------
-    ## age         0.975      0.973      0.978        0.974  FALSE      
-    ## 
-    ## $age_ctg
-    ## 
-    ## 
-    ## variable       OR   lower_CI   upper_CI   potconf_OR  confounder 
-    ## ---------  ------  ---------  ---------  -----------  -----------
-    ## age         0.975      0.973      0.978        0.972  TRUE       
-    ## 
-    ## $sysbp_ctg
-    ## 
-    ## 
-    ## variable       OR   lower_CI   upper_CI   potconf_OR  confounder 
-    ## ---------  ------  ---------  ---------  -----------  -----------
-    ## age         0.975      0.973      0.978        0.974  FALSE      
-    ## 
-    ## $diabp_ctg
-    ## 
-    ## 
-    ## variable       OR   lower_CI   upper_CI   potconf_OR  confounder 
-    ## ---------  ------  ---------  ---------  -----------  -----------
-    ## age         0.975      0.973      0.978        0.974  FALSE
+    ## age         0.975      0.973      0.978        0.972  TRUE
 
     ## Generalized linear mixed model fit by maximum likelihood (Adaptive
     ##   Gauss-Hermite Quadrature, nAGQ = 0) [glmerMod]
@@ -1203,7 +1266,7 @@ While answering these questions, please account for any confounders that you hav
 
 Next you are interested in the relationship between certain health outcomes and smoking status. In particular you are interested in :
 
-(1)The relationship between current smoking status and systolic blood pressure. ![](longi_final_report_files/figure-markdown_github/unnamed-chunk-11-1.png)
+(1)The relationship between current smoking status and systolic blood pressure. ![](longi_final_report_files/figure-markdown_github/unnamed-chunk-10-1.png)
 
     ## # A tibble: 3 x 6
     ##   variable    OR lower_CI upper_CI conf_OR confounder
@@ -1339,11 +1402,17 @@ From the table above, we found "sysbp", "prevhyp" and "hyperten" are confounders
 
 (3)The relationship between current smoking status and serum total cholesterol. Again, while answering these questions, please account for any confounders that you have evidence may impact these relationships.
 
-    ## Warning: Removed 409 rows containing non-finite values (stat_smooth).
+    ## Warning: Removed 409 rows containing missing values (position_stack).
 
-    ## Warning: Removed 409 rows containing missing values (geom_point).
+![](longi_final_report_files/figure-markdown_github/unnamed-chunk-12-1.png)
 
-![](longi_final_report_files/figure-markdown_github/unnamed-chunk-13-1.png)
+    ## Warning: Removed 409 rows containing non-finite values (stat_boxplot).
+
+![](longi_final_report_files/figure-markdown_github/unnamed-chunk-12-2.png)
+
+    ## Warning: Removed 409 rows containing non-finite values (stat_ydensity).
+
+![](longi_final_report_files/figure-markdown_github/unnamed-chunk-12-3.png)
 
     ## 
     ##     0     1 
@@ -1352,558 +1421,79 @@ From the table above, we found "sysbp", "prevhyp" and "hyperten" are confounders
 Finding confounders
 -------------------
 
-    ## Beginning Cgee S-function, @(#) geeformula.q 4.13 98/01/27
-
-    ## running glm to get initial regression estimate
-
-    ##  (Intercept)      totchol 
-    ##  0.180474997 -0.001869103
-
-    ## Beginning Cgee S-function, @(#) geeformula.q 4.13 98/01/27
-    ## running glm to get initial regression estimate
-
-    ##  (Intercept)      totchol         sex2 
-    ##  0.304364508 -0.001008861 -0.599150529
-
-    ## Beginning Cgee S-function, @(#) geeformula.q 4.13 98/01/27
-    ## running glm to get initial regression estimate
-
-    ##   (Intercept)       totchol           age 
-    ##  2.8313902251 -0.0001034184 -0.0566406814
-
-    ## Beginning Cgee S-function, @(#) geeformula.q 4.13 98/01/27
-    ## running glm to get initial regression estimate
-
-    ##  (Intercept)      totchol        sysbp 
-    ##  1.725363617 -0.000925225 -0.013079212
-
-    ## Beginning Cgee S-function, @(#) geeformula.q 4.13 98/01/27
-    ## running glm to get initial regression estimate
-
-    ##  (Intercept)      totchol        diabp 
-    ##  1.122586351 -0.001456582 -0.012565835
-
-    ## Beginning Cgee S-function, @(#) geeformula.q 4.13 98/01/27
-    ## running glm to get initial regression estimate
-
-    ## Warning: glm.fit: algorithm did not converge
-
-    ## Warning: glm.fit: fitted probabilities numerically 0 or 1 occurred
-
-    ##   (Intercept)       totchol       cigpday 
-    ## -2.149461e+01 -1.846024e-04  3.959552e+01
-
-    ## Beginning Cgee S-function, @(#) geeformula.q 4.13 98/01/27
-    ## running glm to get initial regression estimate
-
-    ##  (Intercept)      totchol          bmi 
-    ##  2.267859530 -0.001381211 -0.085631423
-
-    ## Beginning Cgee S-function, @(#) geeformula.q 4.13 98/01/27
-    ## running glm to get initial regression estimate
-
-    ##  (Intercept)      totchol    diabetes1 
-    ##  0.199463411 -0.001870223 -0.436048131
-
-    ## Beginning Cgee S-function, @(#) geeformula.q 4.13 98/01/27
-    ## running glm to get initial regression estimate
-
-    ## (Intercept)     totchol     bpmeds1 
-    ##  0.22186119 -0.00176108 -0.66682312
-
-    ## Beginning Cgee S-function, @(#) geeformula.q 4.13 98/01/27
-    ## running glm to get initial regression estimate
-
-    ##  (Intercept)      totchol     heartrte 
-    ## -0.577000661 -0.002105534  0.010599667
-
-    ## Beginning Cgee S-function, @(#) geeformula.q 4.13 98/01/27
-    ## running glm to get initial regression estimate
-
-    ##  (Intercept)      totchol      glucose 
-    ##  0.731301297 -0.002075508 -0.005853906
-
-    ## Beginning Cgee S-function, @(#) geeformula.q 4.13 98/01/27
-    ## running glm to get initial regression estimate
-
-    ##  (Intercept)      totchol        educ2        educ3        educ4 
-    ##  0.061276975 -0.001769349  0.309068482 -0.057506010  0.101512857
-
-    ## Beginning Cgee S-function, @(#) geeformula.q 4.13 98/01/27
-    ## running glm to get initial regression estimate
-
-    ##  (Intercept)      totchol     prevchd1 
-    ##  0.188137717 -0.001799442 -0.352449578
-
-    ## Beginning Cgee S-function, @(#) geeformula.q 4.13 98/01/27
-    ## running glm to get initial regression estimate
-
-    ##  (Intercept)      totchol      prevap1 
-    ##  0.181597221 -0.001775954 -0.465446390
-
-    ## Beginning Cgee S-function, @(#) geeformula.q 4.13 98/01/27
-    ## running glm to get initial regression estimate
-
-    ##   (Intercept)       totchol       prevmi1 
-    ##  0.1804896950 -0.0018690669 -0.0007246913
-
-    ## Beginning Cgee S-function, @(#) geeformula.q 4.13 98/01/27
-    ## running glm to get initial regression estimate
-
-    ##  (Intercept)      totchol    prevstrk1 
-    ##  0.181481427 -0.001843588 -0.601436167
-
-    ## Beginning Cgee S-function, @(#) geeformula.q 4.13 98/01/27
-    ## running glm to get initial regression estimate
-
-    ##  (Intercept)      totchol     prevhyp1 
-    ##  0.254704355 -0.001093214 -0.587008909
-
-    ## Beginning Cgee S-function, @(#) geeformula.q 4.13 98/01/27
-    ## running glm to get initial regression estimate
-
-    ##  (Intercept)      totchol       period 
-    ##  0.727805611 -0.001822751 -0.299025251
-
-    ## Beginning Cgee S-function, @(#) geeformula.q 4.13 98/01/27
-    ## running glm to get initial regression estimate
-
-    ##  (Intercept)      totchol         hdlc 
-    ##  0.044882356 -0.002570154 -0.001898161
-
-    ## Beginning Cgee S-function, @(#) geeformula.q 4.13 98/01/27
-    ## running glm to get initial regression estimate
-
-    ##  (Intercept)      totchol         ldlc 
-    ##  0.250677947 -0.009187024  0.007152646
-
-    ## Beginning Cgee S-function, @(#) geeformula.q 4.13 98/01/27
-    ## running glm to get initial regression estimate
-
-    ##  (Intercept)      totchol       angina 
-    ##  0.175656048 -0.001729512 -0.177845483
-
-    ## Beginning Cgee S-function, @(#) geeformula.q 4.13 98/01/27
-    ## running glm to get initial regression estimate
-
-    ##  (Intercept)      totchol       hospmi 
-    ##  0.195417198 -0.002078423  0.351737296
-
-    ## Beginning Cgee S-function, @(#) geeformula.q 4.13 98/01/27
-    ## running glm to get initial regression estimate
-
-    ##  (Intercept)      totchol      mi_fchd 
-    ##  0.189787408 -0.002082404  0.270651764
-
-    ## Beginning Cgee S-function, @(#) geeformula.q 4.13 98/01/27
-    ## running glm to get initial regression estimate
-
-    ##  (Intercept)      totchol       anychd 
-    ##  0.180322574 -0.001891149  0.020107886
-
-    ## Beginning Cgee S-function, @(#) geeformula.q 4.13 98/01/27
-    ## running glm to get initial regression estimate
-
-    ##  (Intercept)      totchol       stroke 
-    ##  0.184952930 -0.001865479 -0.058643127
-
-    ## Beginning Cgee S-function, @(#) geeformula.q 4.13 98/01/27
-    ## running glm to get initial regression estimate
-
-    ##  (Intercept)      totchol          cvd 
-    ##  0.171412976 -0.001961615  0.124512945
-
-    ## Beginning Cgee S-function, @(#) geeformula.q 4.13 98/01/27
-    ## running glm to get initial regression estimate
-
-    ##  (Intercept)      totchol     hyperten 
-    ##  0.448140968 -0.001369585 -0.525759376
-
-    ## Beginning Cgee S-function, @(#) geeformula.q 4.13 98/01/27
-    ## running glm to get initial regression estimate
-
-    ##   (Intercept)       totchol  age_ctg35-44  age_ctg45-54  age_ctg55-64 
-    ##  0.4237096503 -0.0004515521  0.0775985537 -0.2787440726 -0.8304547644 
-    ##  age_ctg65-74    age_ctg75+ 
-    ## -1.4405447539 -2.2964765535
-
-    ## Beginning Cgee S-function, @(#) geeformula.q 4.13 98/01/27
-    ## running glm to get initial regression estimate
-
-    ##       (Intercept)           totchol   sysbp_ctgcrisis sysbp_ctgelevated 
-    ##      0.3823593209     -0.0009234769     -1.0191658985     -0.3670021499 
-    ##   sysbp_ctgstage1   sysbp_ctgstage2 
-    ##     -0.4383582160     -0.7076450514
-
-    ## Beginning Cgee S-function, @(#) geeformula.q 4.13 98/01/27
-    ## running glm to get initial regression estimate
-
-    ##     (Intercept)         totchol diabp_ctgcrisis diabp_ctgstage1 
-    ##     0.260736559    -0.001482552    -0.452776545    -0.202567676 
-    ## diabp_ctgstage2 
-    ##    -0.386936757
-
-    ## Beginning Cgee S-function, @(#) geeformula.q 4.13 98/01/27
-    ## running glm to get initial regression estimate
-
-    ##  (Intercept)      totchol      diabp_c 
-    ##  0.079147604 -0.001456582 -0.012565835
-
-    ## Beginning Cgee S-function, @(#) geeformula.q 4.13 98/01/27
-    ## running glm to get initial regression estimate
-
-    ##  (Intercept)      totchol      sysbp_c 
-    ## -0.057648336 -0.000925225 -0.013079212
-
-    ## Beginning Cgee S-function, @(#) geeformula.q 4.13 98/01/27
-    ## running glm to get initial regression estimate
-
-    ##  (Intercept)      totchol  totchol_ctg 
-    ##  0.303357304 -0.001839479 -0.131485645
-
-    ## Beginning Cgee S-function, @(#) geeformula.q 4.13 98/01/27
-    ## running glm to get initial regression estimate
-
-    ##  (Intercept)      totchol      bmi_cat 
-    ##  0.768854509 -0.001887641 -0.197038129
-
-    ## $sex
-    ## 
-    ## 
-    ## variable       OR   lower_CI   upper_CI   potconf_OR  confounder 
-    ## ---------  ------  ---------  ---------  -----------  -----------
-    ## totchol     0.999      0.998          1        0.999  FALSE      
-    ## 
-    ## $age
-    ## 
-    ## 
-    ## variable       OR   lower_CI   upper_CI   potconf_OR  confounder 
-    ## ---------  ------  ---------  ---------  -----------  -----------
-    ## totchol     0.999      0.998          1        1.001  TRUE       
-    ## 
-    ## $sysbp
-    ## 
-    ## 
-    ## variable       OR   lower_CI   upper_CI   potconf_OR  confounder 
-    ## ---------  ------  ---------  ---------  -----------  -----------
-    ## totchol     0.999      0.998          1            1  FALSE      
-    ## 
-    ## $diabp
-    ## 
-    ## 
-    ## variable       OR   lower_CI   upper_CI   potconf_OR  confounder 
-    ## ---------  ------  ---------  ---------  -----------  -----------
-    ## totchol     0.999      0.998          1        0.999  FALSE      
-    ## 
-    ## $cigpday
-    ## 
-    ## 
-    ## variable       OR   lower_CI   upper_CI   potconf_OR  confounder 
-    ## ---------  ------  ---------  ---------  -----------  -----------
-    ## totchol     0.999      0.998          1        0.999  FALSE      
-    ## 
-    ## $bmi
-    ## 
-    ## 
-    ## variable       OR   lower_CI   upper_CI   potconf_OR  confounder 
-    ## ---------  ------  ---------  ---------  -----------  -----------
-    ## totchol     0.999      0.998          1            1  FALSE      
-    ## 
-    ## $diabetes
-    ## 
     ## 
-    ## variable       OR   lower_CI   upper_CI   potconf_OR  confounder 
-    ## ---------  ------  ---------  ---------  -----------  -----------
-    ## totchol     0.999      0.998          1        0.999  FALSE      
-    ## 
-    ## $bpmeds
-    ## 
-    ## 
-    ## variable       OR   lower_CI   upper_CI   potconf_OR  confounder 
-    ## ---------  ------  ---------  ---------  -----------  -----------
-    ## totchol     0.999      0.998          1        0.999  FALSE      
-    ## 
-    ## $heartrte
-    ## 
-    ## 
-    ## variable       OR   lower_CI   upper_CI   potconf_OR  confounder 
-    ## ---------  ------  ---------  ---------  -----------  -----------
-    ## totchol     0.999      0.998          1        0.999  FALSE      
-    ## 
-    ## $glucose
-    ## 
-    ## 
-    ## variable       OR   lower_CI   upper_CI   potconf_OR  confounder 
-    ## ---------  ------  ---------  ---------  -----------  -----------
-    ## totchol     0.999      0.998          1        0.999  FALSE      
-    ## 
-    ## $educ
-    ## 
-    ## 
-    ## variable       OR   lower_CI   upper_CI   potconf_OR  confounder 
-    ## ---------  ------  ---------  ---------  -----------  -----------
-    ## totchol     0.999      0.998          1        0.999  FALSE      
-    ## 
-    ## $prevchd
-    ## 
-    ## 
-    ## variable       OR   lower_CI   upper_CI   potconf_OR  confounder 
-    ## ---------  ------  ---------  ---------  -----------  -----------
-    ## totchol     0.999      0.998          1        0.999  FALSE      
-    ## 
-    ## $prevap
-    ## 
-    ## 
-    ## variable       OR   lower_CI   upper_CI   potconf_OR  confounder 
-    ## ---------  ------  ---------  ---------  -----------  -----------
-    ## totchol     0.999      0.998          1        0.999  FALSE      
-    ## 
-    ## $prevmi
-    ## 
-    ## 
-    ## variable       OR   lower_CI   upper_CI   potconf_OR  confounder 
-    ## ---------  ------  ---------  ---------  -----------  -----------
-    ## totchol     0.999      0.998          1        0.999  FALSE      
-    ## 
-    ## $prevstrk
-    ## 
-    ## 
-    ## variable       OR   lower_CI   upper_CI   potconf_OR  confounder 
-    ## ---------  ------  ---------  ---------  -----------  -----------
-    ## totchol     0.999      0.998          1        0.999  FALSE      
-    ## 
-    ## $prevhyp
-    ## 
-    ## 
-    ## variable       OR   lower_CI   upper_CI   potconf_OR  confounder 
-    ## ---------  ------  ---------  ---------  -----------  -----------
-    ## totchol     0.999      0.998          1            1  FALSE      
-    ## 
-    ## $period
-    ## 
-    ## 
-    ## variable       OR   lower_CI   upper_CI   potconf_OR  confounder 
-    ## ---------  ------  ---------  ---------  -----------  -----------
-    ## totchol     0.999      0.998          1            1  FALSE      
-    ## 
-    ## $hdlc
-    ## 
-    ## 
-    ## variable       OR   lower_CI   upper_CI   potconf_OR  confounder 
-    ## ---------  ------  ---------  ---------  -----------  -----------
-    ## totchol     0.999      0.998          1        0.997  TRUE       
-    ## 
-    ## $ldlc
-    ## 
-    ## 
-    ## variable       OR   lower_CI   upper_CI   potconf_OR  confounder 
-    ## ---------  ------  ---------  ---------  -----------  -----------
-    ## totchol     0.999      0.998          1        0.991  TRUE       
-    ## 
-    ## $angina
-    ## 
-    ## 
-    ## variable       OR   lower_CI   upper_CI   potconf_OR  confounder 
-    ## ---------  ------  ---------  ---------  -----------  -----------
-    ## totchol     0.999      0.998          1        0.999  FALSE      
-    ## 
-    ## $hospmi
-    ## 
-    ## 
-    ## variable       OR   lower_CI   upper_CI   potconf_OR  confounder 
-    ## ---------  ------  ---------  ---------  -----------  -----------
-    ## totchol     0.999      0.998          1        0.999  FALSE      
-    ## 
-    ## $mi_fchd
-    ## 
-    ## 
-    ## variable       OR   lower_CI   upper_CI   potconf_OR  confounder 
-    ## ---------  ------  ---------  ---------  -----------  -----------
-    ## totchol     0.999      0.998          1        0.999  FALSE      
-    ## 
-    ## $anychd
-    ## 
-    ## 
-    ## variable       OR   lower_CI   upper_CI   potconf_OR  confounder 
-    ## ---------  ------  ---------  ---------  -----------  -----------
-    ## totchol     0.999      0.998          1        0.999  FALSE      
-    ## 
-    ## $stroke
-    ## 
-    ## 
-    ## variable       OR   lower_CI   upper_CI   potconf_OR  confounder 
-    ## ---------  ------  ---------  ---------  -----------  -----------
-    ## totchol     0.999      0.998          1        0.999  FALSE      
-    ## 
-    ## $cvd
-    ## 
-    ## 
-    ## variable       OR   lower_CI   upper_CI   potconf_OR  confounder 
-    ## ---------  ------  ---------  ---------  -----------  -----------
-    ## totchol     0.999      0.998          1        0.999  FALSE      
-    ## 
-    ## $hyperten
-    ## 
-    ## 
-    ## variable       OR   lower_CI   upper_CI   potconf_OR  confounder 
-    ## ---------  ------  ---------  ---------  -----------  -----------
-    ## totchol     0.999      0.998          1        0.999  FALSE      
-    ## 
-    ## $age_ctg
-    ## 
-    ## 
-    ## variable       OR   lower_CI   upper_CI   potconf_OR  confounder 
-    ## ---------  ------  ---------  ---------  -----------  -----------
-    ## totchol     0.999      0.998          1            1  TRUE       
-    ## 
-    ## $sysbp_ctg
-    ## 
-    ## 
-    ## variable       OR   lower_CI   upper_CI   potconf_OR  confounder 
-    ## ---------  ------  ---------  ---------  -----------  -----------
-    ## totchol     0.999      0.998          1            1  FALSE      
-    ## 
-    ## $diabp_ctg
-    ## 
-    ## 
-    ## variable       OR   lower_CI   upper_CI   potconf_OR  confounder 
-    ## ---------  ------  ---------  ---------  -----------  -----------
-    ## totchol     0.999      0.998          1        0.999  FALSE      
-    ## 
-    ## $diabp_c
-    ## 
-    ## 
-    ## variable       OR   lower_CI   upper_CI   potconf_OR  confounder 
-    ## ---------  ------  ---------  ---------  -----------  -----------
-    ## totchol     0.999      0.998          1        0.999  FALSE      
-    ## 
-    ## $sysbp_c
-    ## 
-    ## 
-    ## variable       OR   lower_CI   upper_CI   potconf_OR  confounder 
-    ## ---------  ------  ---------  ---------  -----------  -----------
-    ## totchol     0.999      0.998          1            1  FALSE      
-    ## 
-    ## $totchol_ctg
-    ## 
-    ## 
-    ## variable       OR   lower_CI   upper_CI   potconf_OR  confounder 
-    ## ---------  ------  ---------  ---------  -----------  -----------
-    ## totchol     0.999      0.998          1        0.999  FALSE      
-    ## 
-    ## $bmi_cat
-    ## 
-    ## 
-    ## variable       OR   lower_CI   upper_CI   potconf_OR  confounder 
-    ## ---------  ------  ---------  ---------  -----------  -----------
-    ## totchol     0.999      0.998          1        0.999  FALSE
+    ## Attaching package: 'nlme'
 
-1.  age
-
-<!-- -->
-
-    ## # A tibble: 11 x 4
-    ## # Groups:   totchol_ctg [?]
-    ##    totchol_ctg age_ctg percent.currentsmoke     n
-    ##          <dbl> <fct>                  <dbl> <int>
-    ##  1           0 35-                    1         1
-    ##  2           0 35-44                  0.677    31
-    ##  3           0 45-54                  0.439    41
-    ##  4           0 55-64                  0.424    33
-    ##  5           0 65-74                  0.333    18
-    ##  6           1 35-                    0.565    23
-    ##  7           1 35-44                  0.598  1754
-    ##  8           1 45-54                  0.510  4054
-    ##  9           1 55-64                  0.374  3668
-    ## 10           1 65-74                  0.245  1801
-    ## 11           1 75+                    0.128   203
-
-![](longi_final_report_files/figure-markdown_github/unnamed-chunk-15-1.png)
-
-(2)hdlc
-
-    ## # A tibble: 6 x 4
-    ## # Groups:   totchol_ctg [?]
-    ##   totchol_ctg hdlc_ctg percent.currentsmoke     n
-    ##         <dbl> <fct>                   <dbl> <int>
-    ## 1           0 Low                     0.571     7
-    ## 2           0 Normal                  0.375    16
-    ## 3           0 Good                    0         2
-    ## 4           1 Low                     0.358   911
-    ## 5           1 Normal                  0.339  1497
-    ## 6           1 Good                    0.322   594
-
-![](longi_final_report_files/figure-markdown_github/unnamed-chunk-16-1.png)
-
-(3)ldlc
-
-    ## # A tibble: 4 x 4
-    ## # Groups:   totchol_ctg [?]
-    ##   totchol_ctg ldlc_ctg percent.currentsmoke     n
-    ##         <dbl> <chr>                   <dbl> <int>
-    ## 1           0 High                    0.45     20
-    ## 2           0 Ideal                   0.2       5
-    ## 3           1 High                    0.336  2571
-    ## 4           1 Ideal                   0.377   430
-
-![](longi_final_report_files/figure-markdown_github/unnamed-chunk-17-1.png)
-
-From the table above, we found age, ldlc and hdlc are confounders.
+    ## The following object is masked from 'package:lme4':
+    ## 
+    ##     lmList
 
-model fitting
--------------
+    ## The following object is masked from 'package:dplyr':
+    ## 
+    ##     collapse
 
-    ##           totchol         age        hdlc        ldlc
-    ## totchol 1.0000000  0.14940630  0.17649924  0.85723230
-    ## age     0.1494063  1.00000000 -0.01070049  0.01044638
-    ## hdlc    0.1764992 -0.01070049  1.00000000 -0.13746200
-    ## ldlc    0.8572323  0.01044638 -0.13746200  1.00000000
+    ##             cursmoke         age         sex     prevchd
+    ## cursmoke  1.00000000 -0.25265497 -0.14784259 -0.04366411
+    ## age      -0.25265497  1.00000000  0.02727738  0.21083836
+    ## sex      -0.14784259  0.02727738  1.00000000 -0.09065342
+    ## prevchd  -0.04366411  0.21083836 -0.09065342  1.00000000
 
-    ## Generalized linear mixed model fit by maximum likelihood (Adaptive
-    ##   Gauss-Hermite Quadrature, nAGQ = 0) [glmerMod]
-    ##  Family: binomial  ( logit )
-    ## Formula: cursmoke ~ totchol + age + hdlc + ldlc + (1 | randid)
+    ## Linear mixed model fit by REML ['lmerMod']
+    ## Formula: totchol ~ as.factor(cursmoke) * sex + bmi + age + prevstrk +  
+    ##     prevchd + (1 | randid)
     ##    Data: frmgham
     ## 
-    ##      AIC      BIC   logLik deviance df.resid 
-    ##   3691.2   3727.3  -1839.6   3679.2     3020 
+    ## REML criterion at convergence: 112157.4
     ## 
     ## Scaled residuals: 
     ##     Min      1Q  Median      3Q     Max 
-    ## -1.2509 -0.7394 -0.5252  1.0545  2.9054 
+    ## -8.7041 -0.5235 -0.0170  0.4909  9.1018 
     ## 
     ## Random effects:
-    ##  Groups Name        Variance Std.Dev.
-    ##  randid (Intercept) 0.01273  0.1128  
-    ## Number of obs: 3026, groups:  randid, 3026
+    ##  Groups   Name        Variance Std.Dev.
+    ##  randid   (Intercept) 1299.6   36.05   
+    ##  Residual              676.6   26.01   
+    ## Number of obs: 11173, groups:  randid, 4405
     ## 
     ## Fixed effects:
-    ##              Estimate Std. Error z value Pr(>|z|)    
-    ## (Intercept)  3.864097   0.376818  10.255  < 2e-16 ***
-    ## totchol     -0.008788   0.002352  -3.737 0.000186 ***
-    ## age         -0.064952   0.005127 -12.669  < 2e-16 ***
-    ## hdlc         0.003762   0.003331   1.129 0.258740    
-    ## ldlc         0.007134   0.002214   3.222 0.001271 ** 
-    ## ---
-    ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+    ##                            Estimate Std. Error t value
+    ## (Intercept)               160.87147    4.33377  37.120
+    ## as.factor(cursmoke)1        6.61384    1.28243   5.157
+    ## sex2                       15.93314    1.47020  10.837
+    ## bmi                         1.74143    0.12657  13.759
+    ## age                         0.45485    0.04592   9.905
+    ## prevstrk1                  -2.50961    3.39507  -0.739
+    ## prevchd1                   -2.35991    1.56937  -1.504
+    ## as.factor(cursmoke)1:sex2  -5.23787    1.80379  -2.904
     ## 
     ## Correlation of Fixed Effects:
-    ##         (Intr) totchl age    hdlc  
-    ## totchol -0.155                     
-    ## age     -0.780 -0.107              
-    ## hdlc    -0.226 -0.627  0.080       
-    ## ldlc    -0.034 -0.920  0.094  0.624
+    ##             (Intr) as.()1 sex2   bmi    age    prvst1 prvch1
+    ## as.fctr(c)1 -0.309                                          
+    ## sex2        -0.230  0.453                                   
+    ## bmi         -0.761  0.075  0.043                            
+    ## age         -0.571  0.161 -0.011 -0.029                     
+    ## prevstrk1    0.034  0.006  0.000  0.009 -0.085              
+    ## prevchd1     0.057  0.041  0.081  0.032 -0.217 -0.058       
+    ## as.fct()1:2  0.079 -0.682 -0.551  0.029  0.013 -0.010 -0.031
 
-    ##                      Est           LL           UL
-    ## (Intercept)  3.864097478  3.125534960  4.602659997
-    ## totchol     -0.008788264 -0.013397730 -0.004178797
-    ## age         -0.064951700 -0.075000390 -0.054903009
-    ## hdlc         0.003762329 -0.002767096  0.010291754
-    ## ldlc         0.007133770  0.002794694  0.011472846
+![](longi_final_report_files/figure-markdown_github/unnamed-chunk-14-1.png)![](longi_final_report_files/figure-markdown_github/unnamed-chunk-14-2.png)![](longi_final_report_files/figure-markdown_github/unnamed-chunk-14-3.png)
 
-    ##                    Est         LL         UL
-    ## (Intercept) 47.6602386 22.7720740 99.7492958
-    ## totchol      0.9912502  0.9866916  0.9958299
-    ## age          0.9371127  0.9277431  0.9465770
-    ## hdlc         1.0037694  0.9972367  1.0103449
-    ## ldlc         1.0071593  1.0027986  1.0115389
+    ## Warning in qt((1 - 0.05)/2 + 0.5, n - 1): NaNs produced
+
+    ## Warning in qt((1 - 0.05)/2 + 0.5, n - 1): NaNs produced
+
+    ## Warning: Removed 2 rows containing missing values (geom_errorbar).
+
+![](longi_final_report_files/figure-markdown_github/unnamed-chunk-14-4.png) From the table above, we found age, ldlc and hdlc are confounders. \#\# bootstrap for confidence interval
+
+    ## BOOTSTRAP CONFIDENCE INTERVAL CALCULATIONS
+    ## Based on 200 bootstrap replicates
+    ## 
+    ## CALL : 
+    ## boot::boot.ci(boot.out = b_par, type = "basic", index = 2)
+    ## 
+    ## Intervals : 
+    ## Level      Basic         
+    ## 95%   ( 3.616,  9.210 )  
+    ## Calculations and Intervals on Original Scale
+    ## Some basic intervals may be unstable

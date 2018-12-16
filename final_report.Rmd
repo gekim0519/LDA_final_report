@@ -1,7 +1,7 @@
 ---
-title: "logitudinal_final_proj"
-author: "Lynette Pan"
-date: "12/3/2018"
+title: "final_report"
+author: "Youn Kyeong Chang (uni# yc3242)"
+date: "December 15, 2018"
 output: github_document
 ---
 
@@ -15,6 +15,7 @@ library(janitor)
 library(mice)
 library(gee)
 library(lme4)
+library(RLRsim)
 
 frmgham = 
   read.csv2("frmgham2.csv", sep = ",", na.strings = c("","NA")) %>% 
@@ -522,7 +523,7 @@ ggplot(data = frmgham, aes(x = period, y = sysbp, group = randid)) +
 
 syslm = lm(sysbp~cursmoke, data = frmgham)
 sysbp <- lmer(sysbp ~ cursmoke + (1|randid), data = frmgham)
-exactLRT(sysbp, syslm)
+# exactLRT(sysbp, syslm)
 ##p-value < 2.2e-16, random effect is significant.
 
 #find the confounder
@@ -631,7 +632,7 @@ ggplot(data = frmgham, aes(x = period, y = diabp, group = randid)) +
 
 dialm = lm(diabp~cursmoke, data = frmgham)
 diabp <- lmer(diabp ~ cursmoke + (1|randid), data = frmgham)
-exactLRT(diabp, dialm)
+# exactLRT(diabp, dialm)
 #p-value < 2.2e-16, random effect is significant.
 
 #find confounder
@@ -886,6 +887,7 @@ boot::boot.ci(b_par,type="basic",index=2)
 lmer <- lmer(diabp ~ cursmoke*sysbp + bmi + prevhyp + (1|randid),  data = frmgham)
 summary(lmer)
 ```
+
 
 
 
