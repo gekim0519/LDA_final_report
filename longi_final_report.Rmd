@@ -89,56 +89,33 @@ summary(frmgham)
 
 #missing values
 ```{r}
-# frmgham %>% 
-#   group_by(period) %>% 
-#   summarize(sum_na_period = sum(is.na(period)))
-# 
-# d1 = frmgham %>% 
-#   group_by(randid) %>% 
-#   summarize(n = n())
-# table(d1$n)
-# # 447 patients have only one obs
-# # 781 patients have only two obs
-# # 3206 patients have all three obs
-# 
-# number.subjects <- 
-#   frmgham  %>% 
-#   select(randid) %>% 
-#   distinct() %>% 
-#   unlist() %>%
-#   length()
-# 
-# number.subjects
-# 
-# # missing data pattern by variables
-# 
-# sort(sapply(frmgham, function(x) { sum(is.na(x)) }), decreasing=TRUE)
+frmgham %>%
+  group_by(period) %>%
+  summarize(sum_na_period = sum(is.na(period)))
+
+d1 = frmgham %>%
+  group_by(randid) %>%
+  summarize(n = n())
+table(d1$n)
+# 447 patients have only one obs
+# 781 patients have only two obs
+# 3206 patients have all three obs
+
+number.subjects <-
+  frmgham  %>%
+  select(randid) %>%
+  distinct() %>%
+  unlist() %>%
+  length()
+
+number.subjects
+
+# missing data pattern by variables
+
+sort(sapply(frmgham, function(x) { sum(is.na(x)) }), decreasing=TRUE)
 
 ```
 
-# Impute missing values using MICE package
-```{r}
-load("frmgham_complete.RData")
-# # frmgham_temp <- mice(frmgham,m=1, method='cart', printFlag=FALSE,seed = 1)
-# # frmgham
-# # summary(frmgham_temp)
-# # frmgham_complete <- complete(frmgham_temp)
-# #save(frmgham_complete, file = "frmgham_complete.RData")
-# frmgham_complete =
-#   frmgham_complete %>% 
-#   mutate(
-#       age_ctg = case_when(
-#       age < 35 ~ "35-",  
-#       age %in% 35:44 ~ "35-44",
-#       age %in% 45:54 ~ "45-54",
-#       age %in% 55:64 ~ "55-64",
-#       age %in% 65:74 ~ "65-74",
-#       age >= 75 ~ "75+"
-#     )) 
-# 
-# sort(sapply(frmgham_complete, function(x) { sum(is.na(x)) }), decreasing=TRUE)
-
-```
 
 
 * The output tells us that 2243 samples are complete, 7077 samples miss both hdlc and ldlc, 4 samples miss only the glucose value and so on.
@@ -158,7 +135,7 @@ library(gee)
 
 
 frmgham = 
-  read.csv2("frmgham2.csv", sep = ",", na.strings=c("","NA")) %>% 
+  read.csv2("frmgham2.csv", sep = ",", na.strings = c("","NA")) %>% 
   clean_names() %>% select(cursmoke, everything()) %>% 
   mutate(sex = as.factor(sex),
          bpmeds = as.factor(bpmeds),
@@ -169,11 +146,14 @@ frmgham =
          prevmi = as.factor(prevmi),
          prevstrk = as.factor(prevstrk),
          prevhyp = as.factor(prevhyp),
-         sysbp = as.numeric(levels(sysbp))[sysbp],
+         sysbp = as.numeric(as.character(sysbp)),
          diabp = as.numeric(as.character(diabp)),
          bmi = as.numeric(as.character(bmi))) %>% 
   as.tibble()
+```
 
+### cursmoke vs age_ctg without adjustment
+```{r}
 ## created age category variable (age_ctg)
 frmgham =
   frmgham %>% 
@@ -188,38 +168,6 @@ frmgham =
     ),
     age_ctg = fct_relevel(age_ctg, "35-")) 
 
-## created sysbp category variable (sysbp_ctg)
-### According to the new guideline from american heart association
-### https://www.ahajournals.org/doi/10.1161/HYP.0000000000000065
-frmgham =
-  frmgham %>% 
-  mutate(
-      sysbp_ctg = case_when(
-      sysbp < 120 ~ "normal",  
-      (sysbp >= 120 & sysbp < 130) ~ "elevated",
-      (sysbp >= 130 & sysbp < 140) ~ "stage1",
-      (sysbp >= 140 & sysbp <= 180) ~ "stage2",
-      sysbp > 180 ~ "crisis"
-    ),
-    sysbp_ctg = fct_relevel(sysbp_ctg, "normal")) 
-
-## created sysbp category variable (diabp_ctg)
-### According to the new guideline from american heart association
-### https://www.ahajournals.org/doi/10.1161/HYP.0000000000000065
-frmgham =
-  frmgham %>% 
-  mutate(
-      diabp_ctg = case_when(
-      diabp < 80 ~ "normal and elevated",  
-      (diabp >= 80 & diabp < 90) ~ "stage1",
-      (diabp >= 90 & diabp <= 120 ) ~ "stage2",
-      diabp > 120 ~ "crisis"
-      ),
-    diabp_ctg = fct_relevel(diabp_ctg, "normal and elevated")) 
-```
-
-### cursmoke vs age_ctg without adjustment
-```{r}
 ### cursmoke vs age_ctg : associated without adjustment 
 frmgham %>% 
   select(randid, cursmoke, age_ctg) %>% 
