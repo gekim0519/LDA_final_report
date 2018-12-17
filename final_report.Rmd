@@ -2,7 +2,7 @@
 title: "final_report"
 author: "Youn Kyeong Chang (uni# yc3242)"
 date: "December 15, 2018"
-output: github_document
+output: pdf_document
 ---
 
 #Final Project: Smoking in the Framingham Heart Study
@@ -58,7 +58,6 @@ summary(frmgham)
 ```
 
 
-
 #missing values
 ```{r}
 frmgham %>%
@@ -87,7 +86,6 @@ number.subjects
 sort(sapply(frmgham, function(x) { sum(is.na(x)) }), decreasing=TRUE)
 
 ```
-
 
 
 * The output tells us that 2243 samples are complete, 7077 samples miss both hdlc and ldlc, 4 samples miss only the glucose value and so on.
@@ -151,8 +149,6 @@ mean(summary_cursmoke$p_cursmoke)
 sd(summary_cursmoke$p_cursmoke)
 min(summary_cursmoke$p_cursmoke)
 max(summary_cursmoke$p_cursmoke)
-
-
 ```
 
 
@@ -520,6 +516,26 @@ map(conf_det, knitr::kable, digits = 3)
 map(conf_det, knitr::kable, digits = 3)
 ```
 
+```{r}
+frmgham_smoker %>% 
+  mutate(sex = ifelse(sex == 1, "male", "women")) %>%
+  select(randid, cigpday, age_ctg, sex) %>% 
+  na.omit() %>% 
+  group_by(age_ctg, sex) %>% 
+  summarise(cigpday_mean = mean(cigpday),
+            se = sqrt(var(cigpday)/n()),
+            n = n()) %>%
+  ggplot(aes(x = age_ctg, y = cigpday_mean, color = sex, group = sex)) + 
+  geom_line() +
+  geom_errorbar(aes(ymin = cigpday_mean - se, ymax = cigpday_mean + se), width = .1) + 
+  labs(title = "Relationship between categorized age and cigpday by sex",
+       x = "Age",
+       y = "mean number of cigarettes smoked per day")
+
+
+```
+
+
 ```{r backward selection}
 cigpday.lmer1<- glmer(cigpday ~ age + sex + heartrte + hdlc + ldlc + totchol + (1 | randid), data = frmgham_smoker, family = poisson, nAGQ = 0)
 summary(cigpday.lmer1)
@@ -552,68 +568,7 @@ Next you are interested in the relationship between certain health outcomes and 
 
 
 (1)The relationship between current smoking status and systolic blood pressure.
-```{r}
-frmgham %>% 
-  ggplot(., aes(x=sysbp, y=cursmoke)) +
-    geom_jitter() + 
-    geom_smooth(method = "loess") + 
-  ggtitle("Unadjusted relationship between current smoking status and diastolic blood pressure")
 
-frmgham %>% 
-  ggplot(., aes(x=sysbp, y=cursmoke)) +
-    geom_boxplot() +  + 
-  ggtitle("Unadjusted relationship between current smoking status and diastolic blood pressure")
-
-#https://www.ncbi.nlm.nih.gov/pubmed/7790985
-#From the research paper above, diastolic blood pressure and hypertension are potential confounders.
-
-#center the variables and find the confounder
-frmgham$diabp_c = frmgham$diabp-mean(frmgham$diabp)
-frmgham$sysbp_c = frmgham$sysbp-mean(frmgham$sysbp)
-
-sysbp <- 
-  glmer(cursmoke ~ sysbp_c + (1|randid), 
-      data = frmgham, 
-      family = binomial)
-
-sysbp_diabp <- 
-  glmer(cursmoke ~ sysbp_c + diabp_c + (1|randid), 
-      data = frmgham, 
-      family = binomial)
-
-sysbp_prevhyp <- 
-  glmer(cursmoke ~ sysbp_c + prevhyp + (1|randid), 
-      data = frmgham, 
-      family = binomial)
-
-sysbp_hyperten <- 
-  glmer(cursmoke ~ sysbp_c + hyperten+ (1|randid), 
-      data = frmgham, 
-      family = binomial)
-
-tibble(
-    variable = c("diabp", "prevhyp", "hyperten"),
-    OR = 
-      exp(coef(summary(sysbp))[2,1]),
-    lower_CI  = 
-      exp(coef(summary(sysbp))[2,1] - 1.96*(coef(summary(sysbp))[2,4])),
-    upper_CI = 
-      exp(coef(summary(sysbp))[2,1] + 1.96*(coef(summary(sysbp))[2,4])),
-    conf_OR =
-      c(exp(coef(summary(sysbp_diabp))[2,1]),
-        exp(coef(summary(sysbp_prevhyp))[2,1]),
-        exp(coef(summary(sysbp_hyperten))[2,1])),
-    confounder =
-      if_else((conf_OR >= lower_CI & conf_OR <= upper_CI), FALSE, TRUE)
-  )
-
-smoke_diabp = glmer(cursmoke ~ diabp_c + sysbp_c + prevhyp + hyperten+ (1|randid), 
-      data = frmgham, 
-      family = binomial)
-summary(smoke_diabp)
-```
-
-(2)The relationship between current smoking status and diastolic blood pressure.
 
 ```{r}
 #jitter plot of cursmoke and sysbp
@@ -723,10 +678,7 @@ boot::boot.ci(b_par,type="basic",index=9)
 ```
 
 
-
-
-##########################################################################################
-#(2)The relationship between current smoking status and diastolic blood pressure.
+(2)The relationship between current smoking status and diastolic blood pressure.
 ```{r}
 #jitter plot of cursmoke and diabp
 frmgham %>% 
@@ -823,10 +775,6 @@ boot::boot.ci(b_par,type="basic",index=6)
 ```
 From the table above, we found "sysbp", "prevhyp" and "hyperten" are confounders. After adding the confounders, the final model is shown above. For a one-unit increase in the diastolic blood pressure, the expected change in log odds is 0.009, adjusting for systolic blood pressure, prevalent hypertensive and hypertensive.
 
-
-
-
----
 
 (3)The relationship between current smoking status and serum total cholesterol. Again, while answering these questions, please account for any confounders that you have evidence may impact these relationships. 
 
@@ -995,7 +943,6 @@ From the table above, we found age, ldlc and hdlc are confounders.
 b_par<-bootMer(x=totchol13,FUN=fixef,nsim=200)
 boot::boot.ci(b_par,type="basic",index=2)
 ```
-
 
 
 ```{r}
