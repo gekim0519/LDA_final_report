@@ -837,48 +837,71 @@ From the table above, we found "sysbp", "prevhyp" and "hyperten" are confounders
 (3)The relationship between current smoking status and serum total cholesterol. Again, while answering these questions, please account for any confounders that you have evidence may impact these relationships. 
 
 
+
+
 ```{r}
 frmgham %>% 
   ggplot(., aes(x=cursmoke, y=totchol)) +
     geom_bar(stat="identity") +ggtitle("Unadjusted relationship between current smoking status and serum total cholesterol")
+
+
 frmgham %>% 
   ggplot(., aes(x=as.factor(cursmoke), y=totchol)) +
   geom_boxplot() +ggtitle("Serum total cholesterol by current smoking status, Boxplot")
+
+
 frmgham %>% 
   ggplot(., aes(x=as.factor(cursmoke), y=totchol)) +
   geom_violin(aes(fill = as.factor(cursmoke))) +ggtitle("Serum total cholesterol by current smoking status, Violin")
 #https://medlineplus.gov/cholesterollevelswhatyouneedtoknow.html
 #categorized totchol based on link above
+
 frmgham=frmgham %>% 
   mutate(totchol_ctg= ifelse(age<=19 & totchol<170,0,
                              ifelse(age>19&totchol %in% c(125, 200), 0,1)))
 table(frmgham$totchol_ctg)
 # 124 normal total chol 
 # 11503 abnormal total chol
+
+
+a=frmgham %>% 
+  filter(!is.na(totchol)) %>% 
+  filter(period==3)
+range(a$totchol)
 ```
+
+
 ## Finding confounders
+
+
 ```{r}
 library(nlme)
 frmgham= frmgham %>% 
   mutate(bmi=as.numeric(as.character(bmi))) %>% 
   mutate(bmi_cat = ifelse(bmi<18.5,0,ifelse(bmi %in% c(18.5,24.9), 1, ifelse(bmi %in% c(25, 29.9),2, 3))))
+
 a=as.data.frame(lapply(frmgham[,c("cursmoke","age","sex","prevchd")], as.numeric))
 cor(a)
 totchol1 <- 
   gls(totchol ~ as.factor(cursmoke)*period+sex+bmi+age, 
       data = frmgham,na.action=na.omit, corr = corCompSymm(,form= ~ 1 | randid) )
+
 totchol <- 
   gls(totchol ~ as.factor(cursmoke), data = frmgham,na.action=na.omit)
 totchol3=lmer(totchol ~ as.factor(cursmoke)+age+sex+prevchd+(1|randid),
               data=frmgham)
+
 totchol4=lmer(totchol ~ as.factor(cursmoke)*age+sex+prevchd+(as.factor(cursmoke)|randid),
               data=frmgham)
+
 totchol5=lmer(totchol ~ as.factor(cursmoke)+age+sex+prevchd+bmi+(1|randid),
               data=frmgham)
 totchol6=lmer(totchol ~ as.factor(cursmoke)+age+sex+prevchd+bmi+(1|randid),
               data=frmgham)
+
 frmgham=frmgham %>% 
   mutate(period = period-1)
+
 totchol7=lmer(totchol ~ as.factor(cursmoke)*sex+bmi+age+prevchd+(1|randid),
               data=frmgham)
 totchol8=lmer(totchol ~ as.factor(cursmoke)*sex+bmi+age+(1|randid),
@@ -889,18 +912,25 @@ totchol11=lmer(totchol ~ as.factor(cursmoke)*as.factor(period)+sex+bmi+age+(1|ra
               data=frmgham)
 totchol10=lmer(totchol ~ as.factor(cursmoke)+as.factor(period)+sex+bmi+age+(1|randid),
               data=frmgham)
+
 totchol12=lmer(totchol ~ as.factor(cursmoke)+as.factor(period)+bmi+age+(1|randid),
               data=frmgham)
-#final model
 totchol13=lmer(totchol ~ as.factor(cursmoke)*sex+bmi+age+prevstrk+prevchd+(1|randid),
               data=frmgham)
-summary(totchol13)
+
+#final model
+totchol15=lmer(totchol ~ as.factor(cursmoke)*sex+bmi+age+sysbp+(1|randid),
+              data=frmgham)
+AIC(totchol15)
+
+
 # AIC(totchol10)
 # summary(totchol10)
 # summary(totchol11)
 # anova(totchol13,totchol14)
 # test the significance of random effect
 #sig_ranef=RLRsim::exactRLRT(totchol13, seed=1)
+
 # pot_conf <- names(frmgham)[-c(1,2,4)]
 # pot_conf <- pot_conf[-c(grep("time", pot_conf), grep("death", pot_conf))]
 # 
@@ -935,8 +965,21 @@ summary(totchol13)
 # 
 # map(conf_det, knitr::kable, digits = 3)
 ```
+
+
+##visualize the relationship between totchol and cursmoke by each confounding variable:
+
 ```{r}
-plot_dt=frmgham %>%
+
+frmgham %>%
+  mutate(cursmoke=as.factor(cursmoke)) %>% 
+  group_by(cursmoke) %>%
+  ggplot(.)+  
+  geom_boxplot(aes(x=cursmoke, y=totchol)) +
+  ggtitle("Totochol by smoking status, boxplot")
+
+
+frmgham %>%
   mutate(cursmoke=as.factor(cursmoke)) %>% 
   group_by(cursmoke, sex) %>%
   summarise(
@@ -946,10 +989,13 @@ plot_dt=frmgham %>%
   ) %>%
   mutate( se=sd/sqrt(n))  %>%
   mutate( ic=se * qt((1-0.05)/2 + .5, n-1))
+
+
 ggplot(plot_dt)+
-  geom_bar( aes(x=cursmoke, y=mean), stat="identity", fill="forestgreen", alpha=0.5) +
-  geom_errorbar( aes(x=cursmoke, ymin=mean-ic, ymax=mean+ic), width=0.4, colour="orange", alpha=0.9, size=1.5) +
+  geom_bar(aes(x=cursmoke, y=mean), stat="identity", fill="forestgreen", alpha=0.5) +
+  geom_errorbar( aes(x=cursmoke, ymin=mean-ic, ymax=mean+ic), width=0.4, colour="orange", alpha=0.9, size=0.75) +
   ggtitle("Mean totochol by gender")+facet_wrap(~sex)
+
 
 frmgham %>%
   mutate(cursmoke=as.factor(cursmoke)) %>% 
@@ -965,6 +1011,7 @@ frmgham %>%
   geom_bar(aes(x=cursmoke, y=mean), stat="identity", fill="forestgreen", alpha=0.5) +
   geom_errorbar( aes(x=cursmoke, ymin=mean-ic, ymax=mean+ic), width=0.4, colour="orange", alpha=0.9, size=1.5) +
   ggtitle("Mean totochol by prevalence of coronary heart disease ")+facet_wrap(~prevchd)
+
 frmgham %>%
   mutate(cursmoke=as.factor(cursmoke)) %>% 
   group_by(cursmoke, age_ctg) %>%
@@ -979,6 +1026,9 @@ frmgham %>%
   geom_bar(aes(x=cursmoke, y=mean), stat="identity", fill="forestgreen", alpha=0.5) +
   geom_errorbar( aes(x=cursmoke, ymin=mean-ic, ymax=mean+ic), width=0.4, colour="orange", alpha=0.9, size=1.5) +
   ggtitle("Mean totochol by age category")+facet_wrap(~age_ctg)
+
+
+
 frmgham %>%
   mutate(cursmoke=as.factor(cursmoke)) %>% 
   group_by(cursmoke, bmi_cat) %>%
@@ -993,22 +1043,24 @@ frmgham %>%
   geom_bar(aes(x=cursmoke, y=mean), stat="identity", fill="forestgreen", alpha=0.5) +
   geom_errorbar( aes(x=cursmoke, ymin=mean-ic, ymax=mean+ic), width=0.4, colour="orange", alpha=0.9, size=1.5) +
   ggtitle("Mean totochol by BMI category")+facet_wrap(~bmi_cat)
+
 ```
-From the table above, we found age, ldlc and hdlc are confounders. 
+
+
+
 ## bootstrap for confidence interval
-```{r}
-b_par<-bootMer(x=totchol13,FUN=fixef,nsim=200)
-boot::boot.ci(b_par,type="basic",index=2)
-```
-
 
 
 ```{r}
-lmer <- lmer(diabp ~ cursmoke*sysbp + bmi + prevhyp + (1|randid),  data = frmgham)
-summary(lmer)
+# b_par<-bootMer(x=totchol15,FUN=fixef,nsim=200)
+# a=boot::boot.ci(b_par,type="basic",index=2)
+# a$basic[1,4]+b$basic[1,4]
+# a$basic[1,5]+b$basic[1,5]
+# 
+# b=boot::boot.ci(b_par,type="basic",index=7)
+# b
+# fixef(totchol15)
 ```
-
-
 
 
 
