@@ -541,8 +541,7 @@ overdisp_fun(cigpday.lmer9)
 # null hypothesis is that our model is correctly specified
 # p-val = 1 not reject, no overdispersion
 
-cigpday.lmer10<- glmer(cigpday ~ age + sex + sex:age + (1 | randid), data = frmgham_smoker, family = poisson, nAGQ = 0)
-summary(cigpday.lmer10)
+####testing overdispersion on glm REMOVE???#####
 #GLM for single time point 
 fit.glm <- frmgham_smoker %>%
   group_by(randid) %>%
@@ -554,8 +553,6 @@ fit.glm <- frmgham_smoker %>%
 summary(fit.glm)
 # Null deviance: 100.78  on 15  degrees of freedom
 # overdispersion
-
-
 ```
 
 
