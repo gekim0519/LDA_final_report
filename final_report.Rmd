@@ -3,6 +3,7 @@ title: "final_report"
 author: "Youn Kyeong Chang (uni# yc3242)"
 date: "December 15, 2018"
 output:
+  word_document: default
   pdf_document: default
   github_document: default
 ---
@@ -11,7 +12,7 @@ output:
 
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = FALSE)
+knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
 library(janitor)
 library(mice)
@@ -1890,7 +1891,7 @@ figure1 =
 figure1_1 + figure1_2 +
   plot_annotation(title = "Figure 1. Relationship between the categorized age and the outcome by sex without adjustment", theme = theme(plot.title = element_text(size = 8)))
 
-ggsave("figure1.png", plot = figure1)
+# ggsave("figure1.png", plot = figure1)
 ```
 
 ### Figure2 ###
@@ -1938,7 +1939,7 @@ figure2 =
 fig2_1 + fig2_2 + fig2_3 + plot_layout(ncol = 3) +
   plot_annotation(title = "Figure 2. Relationship between current smoking stutus and the outcome without adjustment", theme = theme(plot.title = element_text(size = 8)))
 
-ggsave("figure2.png", plot = figure2)
+# ggsave("figure2.png", plot = figure2)
 ```
 
 
