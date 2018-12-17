@@ -572,9 +572,6 @@ frmgham_smoker %>%
   labs(title = "Relationship between categorized age and cigpday by sex",
        x = "Age",
        y = "mean number of cigarettes smoked per day")
-
-# add errorbar
-
 ```
 
 
@@ -633,9 +630,7 @@ the var for random intercept; randid (Intercept) 0.3513 is low
 test overspersion
 
 ```{r model assumption checking}
-blmeco::dispersion_glmer(cigpday.lmer9)
-# is between 0.75 and 1.4
-
+# randef qqplot
 qqnorm(ranef(cigpday.lmer9)$randid[,1])
 qqline(ranef(cigpday.lmer9)$randid[,1])
 
