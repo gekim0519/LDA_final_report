@@ -161,22 +161,6 @@ totchol13=lmer(totchol ~ as.factor(cursmoke)*sex+bmi+age+prevstrk+prevchd+(1|ran
 totchol15=lmer(totchol ~ as.factor(cursmoke)*sex+bmi+age+sysbp+(1|randid),
               data=frmgham)
 AIC(totchol15)
-totchol14=lmer(totchol ~ as.factor(cursmoke)+sex+hdlc+bmi+age+(1|randid),
-              data=frmgham)
-frmgham %>% 
-  mutate(sex = ifelse(sex == 1, "male", "women")) %>%
-  select(randid, cursmoke, sex,totchol) %>% 
-  na.omit() %>% 
-  group_by(cursmoke, sex) %>% 
-  summarise(p_cursmoke = sum(cursmoke)/n(),
-            lower_CI = prop.test(sum(cursmoke), n())$conf.int[1],
-            upper_CI = prop.test(sum(cursmoke), n())$conf.int[2]) %>%
-  ggplot(aes(x = age_ctg, y = p_cursmoke, color = sex, group = sex)) +
-  geom_errorbar(aes(ymin = lower_CI, ymax = upper_CI), width = .1) +
-  geom_line() +
-  labs(title = "Relationship between categorized age and smoking status by sex",
-       x = "Age",
-       y = "Probability of current smoking")
 
 
 # AIC(totchol10)
@@ -307,14 +291,14 @@ frmgham %>%
 
 
 ```{r}
-b_par<-bootMer(x=totchol15,FUN=fixef,nsim=200)
-a=boot::boot.ci(b_par,type="basic",index=2)
-a$basic[1,4]+b$basic[1,4]
-a$basic[1,5]+b$basic[1,5]
-
-b=boot::boot.ci(b_par,type="basic",index=7)
-b
-fixef(totchol15)
+# b_par<-bootMer(x=totchol15,FUN=fixef,nsim=200)
+# a=boot::boot.ci(b_par,type="basic",index=2)
+# a$basic[1,4]+b$basic[1,4]
+# a$basic[1,5]+b$basic[1,5]
+# 
+# b=boot::boot.ci(b_par,type="basic",index=7)
+# b
+# fixef(totchol15)
 ```
 
 
