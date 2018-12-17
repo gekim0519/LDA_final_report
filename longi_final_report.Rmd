@@ -446,13 +446,16 @@ frmgham_smoker %>%
   na.omit() %>% 
   group_by(age_ctg, sex) %>% 
   summarise(cigpday_mean = mean(cigpday),
-            se = sqrt(var(cigpday))) %>%
+            se = sqrt(var(cigpday)/n()),
+            n = n()) %>%
   ggplot(aes(x = age_ctg, y = cigpday_mean, color = sex, group = sex)) + 
   geom_line() +
   geom_errorbar(aes(ymin = cigpday_mean - se, ymax = cigpday_mean + se), width = .1) + 
   labs(title = "Relationship between categorized age and cigpday by sex",
        x = "Age",
        y = "mean number of cigarettes smoked per day")
+
+
 ```
 
 
