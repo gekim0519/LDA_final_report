@@ -149,12 +149,9 @@ for (conf in pot_conf) {
     upper_CI =
       exp(coef(summary(age))[2,1] + 1.96*(coef(summary(age))[2,2])),
     potconf_OR =
-<<<<<<< HEAD
       exp(coef(summary(fit_gee))[2,1]),
-=======
       exp(coef(summary(fit_glmer))[2,1]),
->>>>>>> 2261cd73fb11b5590b29978c2a5f67d3ed3af939
-    confounder =
+  confounder =
       if_else((potconf_OR >= lower_CI & potconf_OR <= upper_CI), FALSE, TRUE)
   )
 
@@ -348,9 +345,23 @@ frmgham %>%
 frmgham_smoker  = frmgham %>%
 filter(cigpday != 0) 
 
+#summary stat 
 frmgham_smoker %>%
-  pull(cigpday) %>%
-  summary()
+  dplyr::select(cigpday, age, period) %>%
+  pastecs::stat.desc() %>%
+  round(digits = 3)
+
+frmgham_smoker %>%
+  distinct(randid) %>%
+  nrow()
+#2294 # of smokers
+
+#missings in smokers
+frmgham_smoker %>%
+ group_by(period) %>%
+   summarize(n = n(),
+     missing = 2294 - n,
+           sum_na_cigpday = sum(is.na(cigpday)))
 
 frmgham_smoker %>%
  group_by(randid) %>%
@@ -363,7 +374,8 @@ frmgham_smoker %>%
  labs(x = "Average number of cigarettes smoked per day",
       y = "Density",
       title = "cigpday summary")
-  
+
+
 ```
 
 
@@ -371,7 +383,6 @@ frmgham_smoker %>%
 frmgham_smoker %>% 
   mutate(sex = ifelse(sex == 1, "male", "women")) %>%
   ggplot(aes(x = age, y = cigpday, group = randid, color = sex)) +
-  geom_point(alpha = .5) +
   geom_line(alpha = .5) 
 ```
 Looking at the plot, we can consider random intercept model.
@@ -429,18 +440,22 @@ conf_det
 ```
 
 ```{r}
-frmgham %>% 
+frmgham_smoker %>% 
   mutate(sex = ifelse(sex == 1, "male", "women")) %>%
   select(randid, cigpday, age_ctg, sex) %>% 
   na.omit() %>% 
   group_by(age_ctg, sex) %>% 
-  summarise(n = n(),
-           cigpday_mean = sum(cigpday)/n()) %>%
-  ggplot(aes(x = age_ctg, y = cigpday_mean, color = sex, group = sex)) +
+  summarise(cigpday_mean = mean(cigpday),
+            se = sqrt(var(cigpday)/n()),
+            n = n()) %>%
+  ggplot(aes(x = age_ctg, y = cigpday_mean, color = sex, group = sex)) + 
   geom_line() +
+  geom_errorbar(aes(ymin = cigpday_mean - se, ymax = cigpday_mean + se), width = .1) + 
   labs(title = "Relationship between categorized age and cigpday by sex",
        x = "Age",
        y = "mean number of cigarettes smoked per day")
+
+
 ```
 
 
@@ -455,42 +470,92 @@ summary(cigpday.lmer2)
 cigpday.lmer3<- glmer(cigpday ~ age + sex + heartrte + hdlc + (1 | randid), data = frmgham_smoker, family = poisson, nAGQ = 0)
 summary(cigpday.lmer3)
 # AIC 7872.8
+#-0.002262
+cigpday.lmer3<- glmer(cigpday ~ age + sex + heartrte + hdlc + prevchd + (1 | randid), data = frmgham_smoker, family = poisson, nAGQ = 0)
+summary(cigpday.lmer3)
 
 # tested interaction term with age
 cigpday.lmer4<- glmer(cigpday ~ age + sex + heartrte + hdlc + age:sex + (1 | randid), data = frmgham_smoker, family = poisson, nAGQ = 0)
 summary(cigpday.lmer4)
 # AIC  7873.8
-cigpday.lmer4<- glmer(cigpday ~ age + sex + heartrte + hdlc + age:heartrte + (1 | randid), data = frmgham_smoker, family = poisson, nAGQ = 0)
-summary(cigpday.lmer4)
+cigpday.lmer5<- glmer(cigpday ~ age + sex + heartrte + hdlc + age:heartrte + (1 | randid), data = frmgham_smoker, family = poisson, nAGQ = 0)
+summary(cigpday.lmer5)
 # decided with heartrte
 # AIC   7870.3
 ```
 
 I will try putting other variables in the model based on research papers. (educ, sex*age)
-
+#https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4939617/
 ```{r model selection based on research}
-cigpday.lmer<- glmer(cigpday ~ age + sex + educ + heartrte + prevhyp + age*sex + age:prevhyp + (1 | randid), data = frmgham_smoker, family = poisson, nAGQ = 0)
-summary(cigpday.lmer)
+cigpday.lmer6<- glmer(cigpday ~ age + sex + educ + heartrte + prevhyp + age*sex + age:prevhyp + (1 | randid), data = frmgham_smoker, family = poisson, nAGQ = 0)
+summary(cigpday.lmer6)
 # AIC 35492.2
 
-cigpday.lmer<- glmer(cigpday ~ age + sex + educ + heartrte + prevhyp + hdlc + age:sex + age:prevhyp + (1 | randid), data = frmgham_smoker, family = poisson, nAGQ = 0)
-summary(cigpday.lmer)
+cigpday.lmer7<- glmer(cigpday ~ age + sex + educ + heartrte + prevhyp + hdlc + age:sex + age:prevhyp + (1 | randid), data = frmgham_smoker, family = poisson, nAGQ = 0)
+summary(cigpday.lmer7)
 # AIC 7678.7
 # need to include hdlc
 
+##** FINAL MODEL **##
 # removing prevhyp and age:prevhyp add age:heartrte
-cigpday.lmer<- glmer(cigpday ~ age + sex + educ + heartrte + hdlc + age:heartrte + (1 | randid), data = frmgham_smoker, family = poisson, nAGQ = 0)
-summary(cigpday.lmer)
+cigpday.lmer8<- glmer(cigpday ~ age + sex + educ + heartrte + hdlc + age:heartrte + age:sex + (1 | randid), data = frmgham_smoker, family = poisson, nAGQ = 0)
+summary(cigpday.lmer8)
 # AIC 7672.4 
 
+##** FINAL MODEL **##
 # removing educ
-cigpday.lmer<- glmer(cigpday ~ age + sex + heartrte + hdlc + age:heartrte + (1 | randid), data = frmgham_smoker, family = poisson, nAGQ = 0)
-summary(cigpday.lmer)
-# AIC 7870.3 
+cigpday.lmer9<- glmer(cigpday ~ age + sex + heartrte + hdlc + age:heartrte + (1 | randid), data = frmgham_smoker, family = poisson, nAGQ = 0)
+summary(cigpday.lmer9)
+# AIC 7870.3
 
 exp(0.0190057)
-exp(-0.0004549)
-exp(0.0190057) * exp(-0.0004549)
+```
+the var for random intercept; randid (Intercept) 0.3513 is low
+test overspersion
+
+```{r model assumption checking}
+# randef qqplot
+qqnorm(ranef(cigpday.lmer9)$randid[,1])
+qqline(ranef(cigpday.lmer9)$randid[,1])
+
+plot(fitted(cigpday.lmer9), resid(cigpday.lmer9)) #residuals vs fitted
+abline(h=0)
+
+smoker_rmna <- frmgham_smoker %>%
+  dplyr::select(randid, cigpday, age, sex, heartrte, hdlc) %>% drop_na()
+smoker_rmna$fitted <- fitted(cigpday.lmer9)    
+
+#fitted vs observed
+plot(smoker_rmna$fitted, jitter(smoker_rmna$cigpday,0.1))
+abline(0,1)
+
+# overdispersion func 
+# https://bbolker.github.io/mixedmodels-misc/glmmFAQ.html#overdispersion
+overdisp_fun <- function(model) {
+    rdf <- df.residual(model)
+    rp <- residuals(model,type="pearson")
+    Pearson.chisq <- sum(rp^2)
+    prat <- Pearson.chisq/rdf
+    pval <- pchisq(Pearson.chisq, df=rdf, lower.tail=FALSE)
+    c(chisq=Pearson.chisq,ratio=prat,rdf=rdf,p=pval)
+}
+overdisp_fun(cigpday.lmer9)
+# tested the goodness of fit using Chi square test 
+# null hypothesis is that our model is correctly specified
+# p-val = 1 not reject, no overdispersion
+
+####testing overdispersion on glm REMOVE???#####
+#GLM for single time point 
+fit.glm <- frmgham_smoker %>%
+  group_by(randid) %>%
+  summarise(min_age = min(age)) %>%
+  left_join(frmgham_smoker, by = c("min_age" = "age", "randid" = "randid")) %>%
+  glm(cigpday ~ min_age + sex + heartrte + hdlc + min_age*heartrte,
+                   data = .,
+                   family = 'poisson')
+summary(fit.glm)
+# Null deviance: 100.78  on 15  degrees of freedom
+# overdispersion
 ```
 
 
