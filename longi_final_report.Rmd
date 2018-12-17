@@ -116,8 +116,7 @@ frmgham %>%
 ### age and cursmoke -- confounder: hdlc, ldlc
 
 ```{r}
-age <-
-  glmer(cursmoke ~ age + (1|randid),
+age <-glmer(cursmoke ~ age + (1|randid),
       data = frmgham,
       family = binomial, 
       nAGQ = 0)

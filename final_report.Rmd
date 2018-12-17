@@ -2,7 +2,9 @@
 title: "final_report"
 author: "Youn Kyeong Chang (uni# yc3242)"
 date: "December 15, 2018"
-output: pdf_document
+output:
+  pdf_document: default
+  github_document: default
 ---
 
 #Final Project: Smoking in the Framingham Heart Study
@@ -779,49 +781,900 @@ From the table above, we found "sysbp", "prevhyp" and "hyperten" are confounders
 (3)The relationship between current smoking status and serum total cholesterol. Again, while answering these questions, please account for any confounders that you have evidence may impact these relationships. 
 
 
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+library(tidyverse)
+library(janitor)
+library(mice)
+library(gee)
+library(lme4)
+
+frmgham = 
+  read.csv2("frmgham2.csv", sep = ",", na.strings = c("","NA")) %>% 
+  clean_names() %>% select(cursmoke, everything()) %>% 
+  mutate(sex = as.factor(sex),
+         bpmeds = as.factor(bpmeds),
+         educ = as.factor(educ),
+         diabetes = as.factor(diabetes),
+         prevap = as.factor(prevap),
+         prevchd = as.factor(prevchd),
+         prevmi = as.factor(prevmi),
+         prevstrk = as.factor(prevstrk),
+         prevhyp = as.factor(prevhyp),
+         sysbp = as.numeric(levels(sysbp))[sysbp],
+         diabp = as.numeric(as.character(diabp)),
+         bmi = as.numeric(as.character(bmi))) %>% 
+  as.tibble()
+```
+
+# Descriptive statistics
+```{r}
+#descriptive statistics for the data
+
+summary(frmgham)
+```
+
+
+
+#missing values
+```{r}
+frmgham %>%
+  group_by(period) %>%
+  summarize(sum_na_period = sum(is.na(period)))
+
+d1 = frmgham %>%
+  group_by(randid) %>%
+  summarize(n = n())
+table(d1$n)
+# 447 patients have only one obs
+# 781 patients have only two obs
+# 3206 patients have all three obs
+
+number.subjects <-
+  frmgham  %>%
+  select(randid) %>%
+  distinct() %>%
+  unlist() %>%
+  length()
+
+number.subjects
+
+# missing data pattern by variables
+
+sort(sapply(frmgham, function(x) { sum(is.na(x)) }), decreasing=TRUE)
+
+```
+
+
+
+* The output tells us that 2243 samples are complete, 7077 samples miss both hdlc and ldlc, 4 samples miss only the glucose value and so on.
+
+
+* there are 447 patients who have only one obs; there are 781 patients who have only two obs and 3206 patients have all three obs. In total, there are 4434 patients in the study.
+
+##1. Target question:
+1) Is there a relationship between age and smoking status?  Does this relationship differ by sex? 
+
+
+### cursmoke vs age_ctg without adjustment
+```{r}
+## created age category variable (age_ctg)
+frmgham =
+  frmgham %>% 
+  mutate(
+      age_ctg = case_when(
+      age < 35 ~ "35-",  
+      age %in% 35:44 ~ "35-44",
+      age %in% 45:54 ~ "45-54",
+      age %in% 55:64 ~ "55-64",
+      age %in% 65:74 ~ "65-74",
+      age >= 75 ~ "75+"
+    ),
+    age_ctg = fct_relevel(age_ctg, "35-")) 
+
+### cursmoke vs age_ctg : associated without adjustment 
+frmgham %>% 
+  select(randid, cursmoke, age_ctg) %>% 
+  na.omit() %>% 
+  group_by(age_ctg) %>% 
+  summarise(p_cursmoke = sum(cursmoke)/n()) %>% 
+  ggplot(aes(x = age_ctg, y = p_cursmoke)) + 
+  geom_bar(stat = "identity") +
+  labs(title = "Relationship between categorized age and smoking status",
+       x = "Age",
+       y = "Probability of current smoking")
+```
+
+## Finding confounders 
+### age and cursmoke -- confounder: hdlc, ldlc
+
+```{r}
+age <-
+  glmer(cursmoke ~ age + (1|randid),
+      data = frmgham,
+      family = binomial, 
+      nAGQ = 0)
+
+pot_conf <- names(frmgham)[-c(1:3, 5)]
+pot_conf <-
+  pot_conf[-c(grep("time", pot_conf))]
+
+conf_det <- vector("list", length = length(pot_conf))
+names(conf_det) <- pot_conf
+
+
+
+for (conf in pot_conf) {
+
+  data <- cbind(frmgham[,c("cursmoke", "age", "randid")], frmgham[,conf])
+  formula <- paste("cursmoke","~","age + (1|randid) +", conf)
+  try(fit_glmer <- glmer(formula,
+      data = data,
+      family = binomial,
+      nAGQ = 0))
+
+  result <- tibble(
+    variable = c("age"),
+    OR =
+      exp(coef(summary(age))[2,1]),
+    lower_CI =
+      exp(coef(summary(age))[2,1] - 1.96*(coef(summary(age))[2,2])),
+    upper_CI =
+      exp(coef(summary(age))[2,1] + 1.96*(coef(summary(age))[2,2])),
+    potconf_OR =
+      exp(coef(summary(fit_gee))[2,1]),
+      exp(coef(summary(fit_glmer))[2,1]),
+  confounder =
+      if_else((potconf_OR >= lower_CI & potconf_OR <= upper_CI), FALSE, TRUE)
+  )
+
+  conf_det[[conf]] <- result
+}
+
+map(conf_det, knitr::kable, digits = 3)
+```
+
+
+
+
+## Finding modifier
+
+```{r}
+### by sex -- modified!
+frmgham %>% 
+  mutate(sex = ifelse(sex == 1, "male", "women")) %>%
+  select(randid, cursmoke, age_ctg, sex) %>% 
+  na.omit() %>% 
+  group_by(age_ctg, sex) %>% 
+  summarise(p_cursmoke = sum(cursmoke)/n(),
+            lower_CI = prop.test(sum(cursmoke), n())$conf.int[1],
+            upper_CI = prop.test(sum(cursmoke), n())$conf.int[2]) %>%
+  ggplot(aes(x = age_ctg, y = p_cursmoke, color = sex, group = sex)) +
+  geom_errorbar(aes(ymin = lower_CI, ymax = upper_CI), width = .1) +
+  geom_line() +
+  labs(title = "Relationship between categorized age and smoking status by sex",
+       x = "Age",
+       y = "Probability of current smoking")
+
+
+### by educ -- not modified except 35-
+
+frmgham %>% 
+  select(randid, cursmoke, age_ctg, educ) %>% 
+  na.omit() %>% 
+  group_by(age_ctg, educ) %>% 
+  summarise(p_cursmoke = sum(cursmoke)/n()) %>% 
+  ggplot(aes(x = age_ctg, y = p_cursmoke, color = educ, group = educ)) + 
+  geom_line() +
+  geom_point() +
+  labs(title = "Relationship between categorized age and smoking status by sex",
+       x = "Age",
+       y = "Probability of current smoking")
+
+### by diabetes -- not modified 
+
+frmgham %>% 
+  select(randid, cursmoke, age_ctg, diabetes) %>% 
+  na.omit() %>% 
+  group_by(age_ctg, diabetes) %>% 
+  summarise(p_cursmoke = sum(cursmoke)/n()) %>% 
+  ggplot(aes(x = age_ctg, y = p_cursmoke, color = diabetes, group = diabetes)) + 
+  geom_line() +
+  geom_point() +
+  labs(title = "Relationship between categorized age and smoking status by sex",
+       x = "Age",
+       y = "Probability of current smoking")
+
+### by prevap -- not modified 
+
+frmgham %>% 
+  select(randid, cursmoke, age_ctg, prevap) %>% 
+  na.omit() %>% 
+  group_by(age_ctg, prevap) %>% 
+  summarise(p_cursmoke = sum(cursmoke)/n()) %>% 
+  ggplot(aes(x = age_ctg, y = p_cursmoke, color = prevap, group = prevap)) + 
+  geom_line() +
+  geom_point() +
+  labs(title = "Relationship between categorized age and smoking status by sex",
+       x = "Age",
+       y = "Probability of current smoking")
+
+### by prevchd -- not modified 
+
+frmgham %>% 
+  select(randid, cursmoke, age_ctg, prevchd) %>% 
+  na.omit() %>% 
+  group_by(age_ctg, prevchd) %>% 
+  summarise(p_cursmoke = sum(cursmoke)/n()) %>% 
+  ggplot(aes(x = age_ctg, y = p_cursmoke, color = prevchd, group = prevchd)) + 
+  geom_line() +
+  geom_point() +
+  labs(title = "Relationship between categorized age and smoking status by sex",
+       x = "Age",
+       y = "Probability of current smoking")
+
+### by prevmi -- not modified 
+
+frmgham %>% 
+  select(randid, cursmoke, age_ctg, prevmi) %>% 
+  na.omit() %>% 
+  group_by(age_ctg, prevmi) %>% 
+  summarise(p_cursmoke = sum(cursmoke)/n(),
+            lower_CI = prop.test(sum(cursmoke), n())$conf.int[1],
+            upper_CI = prop.test(sum(cursmoke), n())$conf.int[2]) %>%
+  ggplot(aes(x = age_ctg, y = p_cursmoke, color = prevmi, group = prevmi)) +
+  geom_errorbar(aes(ymin = lower_CI, ymax = upper_CI), width = .1) +
+  geom_line() +
+  geom_point() +
+  labs(title = "Relationship between categorized age and smoking status by sex",
+       x = "Age",
+       y = "Probability of current smoking")
+
+### by prevstrk -- not modified 
+
+frmgham %>% 
+  select(randid, cursmoke, age_ctg, prevstrk) %>% 
+  na.omit() %>% 
+  group_by(age_ctg, prevstrk) %>% 
+  summarise(p_cursmoke = sum(cursmoke)/n(),
+            lower_CI = prop.test(sum(cursmoke), n())$conf.int[1],
+            upper_CI = prop.test(sum(cursmoke), n())$conf.int[2]) %>%
+  ggplot(aes(x = age_ctg, y = p_cursmoke, color = prevstrk, group = prevstrk)) +
+  geom_errorbar(aes(ymin = lower_CI, ymax = upper_CI), width = .1) +
+  geom_line() +
+  geom_point() +
+  labs(title = "Relationship between categorized age and smoking status by sex",
+       x = "Age",
+       y = "Probability of current smoking")
+
+### by prevhyp -- slightly modified 
+
+frmgham %>% 
+  select(randid, cursmoke, age_ctg, prevhyp) %>% 
+  na.omit() %>% 
+  group_by(age_ctg, prevhyp) %>% 
+  summarise(p_cursmoke = sum(cursmoke)/n(),
+            lower_CI = prop.test(sum(cursmoke), n())$conf.int[1],
+            upper_CI = prop.test(sum(cursmoke), n())$conf.int[2]) %>%
+  ggplot(aes(x = age_ctg, y = p_cursmoke, color = prevhyp, group = prevhyp)) +
+  geom_errorbar(aes(ymin = lower_CI, ymax = upper_CI), width = .1) + 
+  geom_line() +
+  geom_point() +
+  labs(title = "Relationship between categorized age and smoking status by sex",
+       x = "Age",
+       y = "Probability of current smoking")
+```
+
+## Fit model using glmer
+```{r}
+#educ variable
+##https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4939617/
+  
+cursmoke_age <-
+  glmer(cursmoke ~ age*sex + educ + hdlc + ldlc + age*prevhyp + (1|randid), 
+        data = frmgham, family = binomial, nAGQ = 0)
+
+summary(cursmoke_age) ## AIC 3581.6, var(random) = 0.007
+
+# changed model based on cigpday
+cursmoke_age <-
+  glmer(cursmoke ~ age*sex + educ + heartrte + hdlc + ldlc + age*prevhyp + (1|randid), 
+        data = frmgham, family = binomial, nAGQ = 0)
+
+summary(cursmoke_age) ## AIC 3550.2, var(random) = 0.004
+
+# cursmoke_age <-
+#   glmer(cursmoke ~ age*sex + educ + heartrte + age*prevhyp + (1|randid), 
+#         data = frmgham, family = binomial, nAGQ = 0)
+# 
+# summary(cursmoke_age) ## AIC 10644.9 var(random) = 21.15
+```
+
+```{r}
+# cigpday
+frmgham_smoker =
+  frmgham %>% filter(cigpday != 0)
+
+cigpday_age <-
+  glmer(cigpday ~ age*sex + educ + heartrte + age*prevhyp + (1|randid), 
+        data = frmgham_smoker, family = poisson, nAGQ = 0)
+
+summary(cigpday_age)
+```
+
+(2) Is there a relationship between the number of cigarettes smoked per day and age?  Does this relationship differ by sex? 
+
+While answering these questions, please account for any confounders that you have evidence may impact the relationship between age and sex with smoking.
+
+```{r}
+frmgham %>% 
+  ggplot(., aes(x=age, y=cigpday)) +
+    geom_jitter() + 
+    geom_smooth(method = "loess") +
+  ggtitle("Unadjusted relationship between the number of cigarettes smoked per day and age")
+```
+
+```{r}
+frmgham_smoker  = frmgham %>%
+filter(cigpday != 0) 
+
+#summary stat 
+frmgham_smoker %>%
+  dplyr::select(cigpday, age, period) %>%
+  pastecs::stat.desc() %>%
+  round(digits = 3)
+
+frmgham_smoker %>%
+  distinct(randid) %>%
+  nrow()
+#2294 # of smokers
+
+#missings in smokers
+frmgham_smoker %>%
+ group_by(period) %>%
+   summarize(n = n(),
+     missing = 2294 - n,
+           sum_na_cigpday = sum(is.na(cigpday)))
+
+frmgham_smoker %>%
+ group_by(randid) %>%
+ mutate(mean.cigpday = mean(cigpday)) %>%
+ ungroup() %>%
+ select(randid, mean.cigpday) %>%
+ distinct() %>%
+ ggplot(aes(x = mean.cigpday)) +
+ geom_histogram(color="darkblue", fill="lightblue", aes(y=..density..)) +
+ labs(x = "Average number of cigarettes smoked per day",
+      y = "Density",
+      title = "cigpday summary")
+
+
+```
+
+
+```{r spaghetti plot}
+frmgham_smoker %>% 
+  mutate(sex = ifelse(sex == 1, "male", "women")) %>%
+  ggplot(aes(x = age, y = cigpday, group = randid, color = sex)) +
+  geom_line(alpha = .5) 
+```
+Looking at the plot, we can consider random intercept model.
+
+We see that most of the particpants are smoking 20 cigarettes per day.
+
+```{r finding counfounders for m2}
+# I will look into SYSBP DIABP TOTCHOL BMI DIABETES 
+# based on https://tobaccocontrol.bmj.com/content/14/5/315
+
+age <- glmer(cigpday ~ age + (1 | randid), 
+      data = frmgham,
+      family = poisson,
+      nAGQ = 0)
+
+pot_conf <- names(frmgham)[-c(2, 5, 8)]
+pot_conf <-
+  pot_conf[-c(grep("time", pot_conf))]
+
+conf_det <- vector("list", length = length(pot_conf))
+names(conf_det) <- pot_conf
+
+conf_det <- vector("list", length = length(pot_conf))
+names(conf_det) <- pot_conf
+
+for (conf in pot_conf) {
+
+  data <- cbind(frmgham[,c("cigpday", "age", "randid")], frmgham[,conf])
+  formula <- paste("cigpday","~","age + (1|randid) +", conf)
+  
+  try(fit_glmer <- glmer(formula,
+      data = data,
+      family = poisson,
+      nAGQ = 0))
+
+  result <- tibble(
+    variable = c("age"),
+    OR =
+      exp(coef(summary(age))[2,1]),
+    lower_CI  =
+      exp(coef(summary(age))[2,1] - 1.96*(coef(summary(age))[2,2])),
+    upper_CI =
+      exp(coef(summary(age))[2,1] + 1.96*(coef(summary(age))[2,2])),
+    potconf_OR =
+      exp(coef(summary(fit_glmer))[2,1]),
+    confounder =
+      if_else((potconf_OR >= lower_CI & potconf_OR <= upper_CI), FALSE, TRUE)
+  )
+
+  conf_det[[conf]] <- result
+}
+
+#map(conf_det, knitr::kable, digits = 3)
+conf_det
+```
+
+```{r}
+frmgham_smoker %>% 
+  mutate(sex = ifelse(sex == 1, "male", "women")) %>%
+  select(randid, cigpday, age_ctg, sex) %>% 
+  na.omit() %>% 
+  group_by(age_ctg, sex) %>% 
+  summarise(cigpday_mean = mean(cigpday),
+            se = sqrt(var(cigpday)/n()),
+            n = n()) %>%
+  ggplot(aes(x = age_ctg, y = cigpday_mean, color = sex, group = sex)) + 
+  geom_line() +
+  geom_errorbar(aes(ymin = cigpday_mean - se, ymax = cigpday_mean + se), width = .1) + 
+  labs(title = "Relationship between categorized age and cigpday by sex",
+       x = "Age",
+       y = "mean number of cigarettes smoked per day")
+
+
+```
+
+
+```{r backward selection}
+cigpday.lmer1<- glmer(cigpday ~ age + sex + heartrte + prevchd + hdlc + prevap + (1 | randid), data = frmgham_smoker, family = poisson, nAGQ = 0)
+summary(cigpday.lmer1)
+# AIC   7873.592 
+cigpday.lmer2<- glmer(cigpday ~ age + sex + heartrte + prevchd + hdlc + (1 | randid), data = frmgham_smoker, family = poisson, nAGQ = 0)
+summary(cigpday.lmer2)
+# AIC 7874.8
+# remove prevchd
+cigpday.lmer3<- glmer(cigpday ~ age + sex + heartrte + hdlc + (1 | randid), data = frmgham_smoker, family = poisson, nAGQ = 0)
+summary(cigpday.lmer3)
+# AIC 7872.8
+#-0.002262
+cigpday.lmer3<- glmer(cigpday ~ age + sex + heartrte + hdlc + prevchd + (1 | randid), data = frmgham_smoker, family = poisson, nAGQ = 0)
+summary(cigpday.lmer3)
+
+# tested interaction term with age
+cigpday.lmer4<- glmer(cigpday ~ age + sex + heartrte + hdlc + age:sex + (1 | randid), data = frmgham_smoker, family = poisson, nAGQ = 0)
+summary(cigpday.lmer4)
+# AIC  7873.8
+cigpday.lmer5<- glmer(cigpday ~ age + sex + heartrte + hdlc + age:heartrte + (1 | randid), data = frmgham_smoker, family = poisson, nAGQ = 0)
+summary(cigpday.lmer5)
+# decided with heartrte
+# AIC   7870.3
+```
+
+I will try putting other variables in the model based on research papers. (educ, sex*age)
+#https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4939617/
+```{r model selection based on research}
+cigpday.lmer6<- glmer(cigpday ~ age + sex + educ + heartrte + prevhyp + age*sex + age:prevhyp + (1 | randid), data = frmgham_smoker, family = poisson, nAGQ = 0)
+summary(cigpday.lmer6)
+# AIC 35492.2
+
+cigpday.lmer7<- glmer(cigpday ~ age + sex + educ + heartrte + prevhyp + hdlc + age:sex + age:prevhyp + (1 | randid), data = frmgham_smoker, family = poisson, nAGQ = 0)
+summary(cigpday.lmer7)
+# AIC 7678.7
+# need to include hdlc
+
+##** FINAL MODEL **##
+# removing prevhyp and age:prevhyp add age:heartrte
+cigpday.lmer8<- glmer(cigpday ~ age + sex + educ + heartrte + hdlc + age:heartrte + age:sex + (1 | randid), data = frmgham_smoker, family = poisson, nAGQ = 0)
+summary(cigpday.lmer8)
+# AIC 7672.4 
+
+##** FINAL MODEL **##
+# removing educ
+cigpday.lmer9<- glmer(cigpday ~ age + sex + heartrte + hdlc + age:heartrte + (1 | randid), data = frmgham_smoker, family = poisson, nAGQ = 0)
+summary(cigpday.lmer9)
+# AIC 7870.3
+
+exp(0.0190057)
+```
+the var for random intercept; randid (Intercept) 0.3513 is low
+test overspersion
+
+```{r model assumption checking}
+# randef qqplot
+qqnorm(ranef(cigpday.lmer9)$randid[,1])
+qqline(ranef(cigpday.lmer9)$randid[,1])
+
+plot(fitted(cigpday.lmer9), resid(cigpday.lmer9)) #residuals vs fitted
+abline(h=0)
+
+smoker_rmna <- frmgham_smoker %>%
+  dplyr::select(randid, cigpday, age, sex, heartrte, hdlc) %>% drop_na()
+smoker_rmna$fitted <- fitted(cigpday.lmer9)    
+
+#fitted vs observed
+plot(smoker_rmna$fitted, jitter(smoker_rmna$cigpday,0.1))
+abline(0,1)
+
+# overdispersion func 
+# https://bbolker.github.io/mixedmodels-misc/glmmFAQ.html#overdispersion
+overdisp_fun <- function(model) {
+    rdf <- df.residual(model)
+    rp <- residuals(model,type="pearson")
+    Pearson.chisq <- sum(rp^2)
+    prat <- Pearson.chisq/rdf
+    pval <- pchisq(Pearson.chisq, df=rdf, lower.tail=FALSE)
+    c(chisq=Pearson.chisq,ratio=prat,rdf=rdf,p=pval)
+}
+overdisp_fun(cigpday.lmer9)
+# tested the goodness of fit using Chi square test 
+# null hypothesis is that our model is correctly specified
+# p-val = 1 not reject, no overdispersion
+
+####testing overdispersion on glm REMOVE???#####
+#GLM for single time point 
+fit.glm <- frmgham_smoker %>%
+  group_by(randid) %>%
+  summarise(min_age = min(age)) %>%
+  left_join(frmgham_smoker, by = c("min_age" = "age", "randid" = "randid")) %>%
+  glm(cigpday ~ min_age + sex + heartrte + hdlc + min_age*heartrte,
+                   data = .,
+                   family = 'poisson')
+summary(fit.glm)
+# Null deviance: 100.78  on 15  degrees of freedom
+# overdispersion
+```
+
+
+#2.Target question:
+
+Next you are interested in the relationship between certain health outcomes and smoking status. In particular you are interested in :
+
+
+(1)The relationship between current smoking status and systolic blood pressure.
+```{r}
+frmgham %>% 
+  ggplot(., aes(x=sysbp, y=cursmoke)) +
+    geom_jitter() + 
+    geom_smooth(method = "loess") + 
+  ggtitle("Unadjusted relationship between current smoking status and diastolic blood pressure")
+
+#https://www.ncbi.nlm.nih.gov/pubmed/7790985
+#From the research paper above, diastolic blood pressure and hypertension are potential confounders.
+
+#center the variables and find the confounder
+frmgham$diabp_c = frmgham$diabp-mean(frmgham$diabp)
+frmgham$sysbp_c = frmgham$sysbp-mean(frmgham$sysbp)
+
+sysbp <- 
+  glmer(cursmoke ~ sysbp_c + (1|randid), 
+      data = frmgham, 
+      family = binomial)
+
+sysbp_diabp <- 
+  glmer(cursmoke ~ sysbp_c + diabp_c + (1|randid), 
+      data = frmgham, 
+      family = binomial)
+
+sysbp_prevhyp <- 
+  glmer(cursmoke ~ sysbp_c + prevhyp + (1|randid), 
+      data = frmgham, 
+      family = binomial)
+
+sysbp_hyperten <- 
+  glmer(cursmoke ~ sysbp_c + hyperten+ (1|randid), 
+      data = frmgham, 
+      family = binomial)
+
+tibble(
+    variable = c("diabp", "prevhyp", "hyperten"),
+    OR = 
+      exp(coef(summary(sysbp))[2,1]),
+    lower_CI  = 
+      exp(coef(summary(sysbp))[2,1] - 1.96*(coef(summary(sysbp))[2,4])),
+    upper_CI = 
+      exp(coef(summary(sysbp))[2,1] + 1.96*(coef(summary(sysbp))[2,4])),
+    conf_OR =
+      c(exp(coef(summary(sysbp_diabp))[2,1]),
+        exp(coef(summary(sysbp_prevhyp))[2,1]),
+        exp(coef(summary(sysbp_hyperten))[2,1])),
+    confounder =
+      if_else((conf_OR >= lower_CI & conf_OR <= upper_CI), FALSE, TRUE)
+  )
+
+smoke_diabp = glmer(cursmoke ~ diabp_c + sysbp_c + prevhyp + hyperten+ (1|randid), 
+      data = frmgham, 
+      family = binomial)
+summary(smoke_diabp)
+```
+
+(2)The relationship between current smoking status and diastolic blood pressure.
+
+```{r}
+#jitter plot of cursmoke and sysbp
+frmgham %>% 
+  ggplot(., aes(x=cursmoke, y=sysbp)) +
+  geom_jitter() + 
+  geom_smooth(method = "loess") + 
+  ggtitle("Unadjusted relationship between current smoking status and systolic blood pressure")
+
+frmgham = frmgham %>% mutate(cursmoke = as.factor(cursmoke),
+                             period = as.factor(period))
+
+##check random effects
+ggplot(data = frmgham, aes(x = period, y = sysbp, group = randid)) +
+  geom_point() +
+  geom_line() +
+  facet_wrap( ~ cursmoke, ncol=2) +
+  ggtitle("sysbp versus period for smoker and nonsmoker")
+
+syslm = lm(sysbp~cursmoke, data = frmgham)
+sysbp <- lmer(sysbp ~ cursmoke + (1|randid), data = frmgham)
+exactLRT(sysbp, syslm)
+##p-value < 2.2e-16, random effect is significant.
+
+#find the confounder
+sysbp_sex <- lmer(sysbp ~ cursmoke + sex + (1|randid), data = frmgham)
+sysbp_totchol <- lmer(sysbp ~ cursmoke + totchol + (1|randid), data = frmgham)
+sysbp_age <- lmer(sysbp ~ cursmoke + age + (1|randid), data = frmgham)
+sysbp_diabp <- lmer(sysbp ~ cursmoke + diabp + (1|randid), data = frmgham)
+sysbp_bmi <- lmer(sysbp ~ cursmoke + bmi + (1|randid), data = frmgham)
+sysbp_diab <- lmer(sysbp ~ cursmoke + diabetes + (1|randid), data = frmgham)
+sysbp_bpmeds <- lmer(sysbp ~ cursmoke + bpmeds + (1|randid), data = frmgham)
+sysbp_heart <- lmer(sysbp ~ cursmoke + heartrte + (1|randid), data = frmgham)
+sysbp_glu <- lmer(sysbp ~ cursmoke + glucose + (1|randid), data = frmgham)
+sysbp_educ <- lmer(sysbp ~ cursmoke + educ + (1|randid), data = frmgham)
+sysbp_prevchd <- lmer(sysbp ~ cursmoke + prevchd + (1|randid), data = frmgham)
+sysbp_prevap <- lmer(sysbp ~ cursmoke + prevap + (1|randid), data = frmgham)
+sysbp_prevmi <- lmer(sysbp ~ cursmoke + prevmi + (1|randid), data = frmgham)
+sysbp_strk<- lmer(sysbp ~ cursmoke + prevstrk + (1|randid), data = frmgham)
+sysbp_hyp <- lmer(sysbp ~ cursmoke + prevhyp + (1|randid), data = frmgham)
+sysbp_per <- lmer(sysbp ~ cursmoke + period + (1|randid), data = frmgham)
+tibble(
+  variable = c("sex", "totchol", "age", "diabp", "bmi", "diab", "bpmeds",
+               "heart", "glu", "educ", "prevchd", "prevap", "prevmi", "prevstrk", "prevhyp",
+               "period"),
+  OR = 
+    exp(coef(summary(sysbp))[2,1]),
+  lower_CI  = 
+    exp(coef(summary(sysbp))[2,1] - 1.96*(coef(summary(sysbp))[2,2])),
+  upper_CI = 
+    exp(coef(summary(sysbp))[2,1] + 1.96*(coef(summary(sysbp))[2,2])),
+  conf_OR =
+    c(exp(coef(summary(sysbp_sex))[2,1]),
+      exp(coef(summary(sysbp_totchol))[2,1]),
+      exp(coef(summary(sysbp_age))[2,1]),
+      exp(coef(summary(sysbp_diabp))[2,1]),
+      exp(coef(summary(sysbp_bmi))[2,1]),
+      exp(coef(summary(sysbp_diab))[2,1]),
+      exp(coef(summary(sysbp_bpmeds))[2,1]),
+      exp(coef(summary(sysbp_heart))[2,1]),
+      exp(coef(summary(sysbp_glu))[2,1]),
+      exp(coef(summary(sysbp_educ))[2,1]),
+      exp(coef(summary(sysbp_prevchd))[2,1]),
+      exp(coef(summary(sysbp_prevap))[2,1]),
+      exp(coef(summary(sysbp_prevmi))[2,1]),
+      exp(coef(summary(sysbp_strk))[2,1]),
+      exp(coef(summary(sysbp_hyp))[2,1]),
+      exp(coef(summary(sysbp_per))[2,1])),
+  confounder =
+    if_else((conf_OR >= lower_CI & conf_OR <= upper_CI), FALSE, TRUE)
+)
+
+#model adding the confounders
+sysbp_smoke = lmer(sysbp ~ cursmoke+ age + diabp + bmi + prevhyp+ period + (1|randid), 
+                    data = frmgham)
+
+#check interaction
+sysbp1 = lmer(sysbp ~ cursmoke*age + diabp + bmi + prevhyp+ period + (1|randid), 
+              data = frmgham)
+sysbp2 = lmer(sysbp ~ cursmoke*diabp + age + bmi + prevhyp +period+ (1|randid), 
+              data = frmgham)
+sysbp3 = lmer(sysbp ~ cursmoke*bmi + age + diabp + prevhyp+period + (1|randid), 
+              data = frmgham)
+sysbp4 = lmer(sysbp ~ cursmoke*prevhyp + age + bmi + diabp +period+ (1|randid), 
+              data = frmgham)
+sysbp5 = lmer(sysbp ~ cursmoke*period + age + bmi + diabp +prevhyp+ (1|randid), 
+              data = frmgham)
+summary(sysbp1)
+summary(sysbp2)
+summary(sysbp3)
+summary(sysbp4)
+summary(sysbp5)
+AIC(sysbp1)
+#interaction term reference: Ulrich John, Monika Hanke,Christian Meyer,Anja Schumann. 
+#Gender and age differences among current smokers in a general population survey. BMC Public Health. 2005; 5: 57.
+#Published online 2005 Jun 3. doi:  [10.1186/1471-2458-5-57]
+AIC(sysbp2)
+AIC(sysbp3)
+AIC(sysbp4)
+AIC(sysbp5)
+
+#95% CI for beta of cursmoke and interaction term
+b_par<-bootMer(x=sysbp1,FUN=fixef,nsim=200)
+boot::boot.ci(b_par,type="basic",index=2)
+b_par<-bootMer(x=sysbp1,FUN=fixef,nsim=200)
+boot::boot.ci(b_par,type="basic",index=9)
+```
+
+
+
+
+##########################################################################################
+#(2)The relationship between current smoking status and diastolic blood pressure.
+```{r}
+#jitter plot of cursmoke and diabp
+frmgham %>% 
+  ggplot(., aes(x=cursmoke, y=diabp)) +
+  geom_jitter() + 
+  geom_smooth(method = "loess") + 
+  ggtitle("Unadjusted relationship between current smoking status and diastolic blood pressure")
+
+#check random effects
+ggplot(data = frmgham, aes(x = period, y = diabp, group = randid)) +
+  geom_point() +
+  geom_line() +
+  facet_wrap( ~ cursmoke, ncol=2) +
+  ggtitle("diabp versus period for smoker and nonsmoker")
+
+dialm = lm(diabp~cursmoke, data = frmgham)
+diabp <- lmer(diabp ~ cursmoke + (1|randid), data = frmgham)
+exactLRT(diabp, dialm)
+#p-value < 2.2e-16, random effect is significant.
+
+#find confounder
+diabp_sex <- lmer(diabp ~ cursmoke + sex + (1|randid), data = frmgham)
+diabp_totchol <- lmer(diabp ~ cursmoke + totchol + (1|randid), data = frmgham)
+diabp_age <- lmer(diabp ~ cursmoke + age + (1|randid), data = frmgham)
+diabp_sysbp <- lmer(diabp ~ cursmoke + sysbp + (1|randid), data = frmgham)
+diabp_bmi <- lmer(diabp ~ cursmoke + bmi + (1|randid), data = frmgham)
+diabp_diab <- lmer(diabp ~ cursmoke + diabetes + (1|randid), data = frmgham)
+diabp_bpmeds <- lmer(diabp ~ cursmoke + bpmeds + (1|randid), data = frmgham)
+diabp_heart <- lmer(diabp ~ cursmoke + heartrte + (1|randid), data = frmgham)
+diabp_glu <- lmer(diabp ~ cursmoke + glucose + (1|randid), data = frmgham)
+diabp_educ <- lmer(diabp ~ cursmoke + educ + (1|randid), data = frmgham)
+diabp_prevchd <- lmer(diabp ~ cursmoke + prevchd + (1|randid), data = frmgham)
+diabp_prevap <- lmer(diabp ~ cursmoke + prevap + (1|randid), data = frmgham)
+diabp_prevmi <- lmer(diabp ~ cursmoke + prevmi + (1|randid), data = frmgham)
+diabp_strk<- lmer(diabp ~ cursmoke + prevstrk + (1|randid), data = frmgham)
+diabp_hyp <- lmer(diabp ~ cursmoke + prevhyp + (1|randid), data = frmgham)
+diabp_per <- lmer(diabp ~ cursmoke + period + (1|randid), data = frmgham)
+tibble(
+  variable = c("sex", "totchol", "age", "sysbp", "bmi", "diab", "bpmeds",
+               "heart", "glu", "educ", "prevchd", "prevap", "prevmi", "prevstrk", "prevhyp",
+               "period"),
+  OR = 
+    exp(coef(summary(diabp))[2,1]),
+  lower_CI  = 
+    exp(coef(summary(diabp))[2,1] - 1.96*(coef(summary(diabp))[2,2])),
+  upper_CI = 
+    exp(coef(summary(diabp))[2,1] + 1.96*(coef(summary(diabp))[2,2])),
+  conf_OR =
+    c(exp(coef(summary(diabp_sex))[2,1]),
+      exp(coef(summary(diabp_totchol))[2,1]),
+      exp(coef(summary(diabp_age))[2,1]),
+      exp(coef(summary(diabp_sysbp))[2,1]),
+      exp(coef(summary(diabp_bmi))[2,1]),
+      exp(coef(summary(diabp_diab))[2,1]),
+      exp(coef(summary(diabp_bpmeds))[2,1]),
+      exp(coef(summary(diabp_heart))[2,1]),
+      exp(coef(summary(diabp_glu))[2,1]),
+      exp(coef(summary(diabp_educ))[2,1]),
+      exp(coef(summary(diabp_prevchd))[2,1]),
+      exp(coef(summary(diabp_prevap))[2,1]),
+      exp(coef(summary(diabp_prevmi))[2,1]),
+      exp(coef(summary(diabp_strk))[2,1]),
+      exp(coef(summary(diabp_hyp))[2,1]),
+      exp(coef(summary(diabp_per))[2,1])),
+  confounder =
+    if_else((conf_OR >= lower_CI & conf_OR <= upper_CI), FALSE, TRUE)
+)
+
+#model adding the confounders
+diabp_smoke = lmer(diabp ~ cursmoke + sysbp + bmi + prevhyp + (1|randid), 
+                   data = frmgham)
+summary(diabp_smoke)
+
+#check interaction
+diabp1 = lmer(diabp ~ cursmoke*sysbp + bmi + prevhyp + (1|randid), 
+              data = frmgham)
+diabp2 = lmer(diabp ~ cursmoke*bmi +sysbp+ prevhyp + (1|randid), 
+              data = frmgham)
+diabp3 = lmer(diabp ~ cursmoke*prevhyp + bmi + sysbp +(1|randid), 
+              data = frmgham)
+summary(diabp1)
+summary(diabp2)
+summary(diabp3)
+AIC(diabp1)
+AIC(diabp2)
+AIC(diabp3)
+AIC(diabp_smoke)
+
+#95% CI of beta of cursmoke and interaction term
+b_par<-bootMer(x=diabp1,FUN=fixef,nsim=200)
+boot::boot.ci(b_par,type="basic",index=2)
+b_par<-bootMer(x=diabp1,FUN=fixef,nsim=200)
+boot::boot.ci(b_par,type="basic",index=6)
+```
+From the table above, we found "sysbp", "prevhyp" and "hyperten" are confounders. After adding the confounders, the final model is shown above. For a one-unit increase in the diastolic blood pressure, the expected change in log odds is 0.009, adjusting for systolic blood pressure, prevalent hypertensive and hypertensive.
+
+
+---
+
+(3)The relationship between current smoking status and serum total cholesterol. Again, while answering these questions, please account for any confounders that you have evidence may impact these relationships. 
+
+
+
+
 ```{r}
 frmgham %>% 
   ggplot(., aes(x=cursmoke, y=totchol)) +
     geom_bar(stat="identity") +ggtitle("Unadjusted relationship between current smoking status and serum total cholesterol")
+
+
 frmgham %>% 
   ggplot(., aes(x=as.factor(cursmoke), y=totchol)) +
   geom_boxplot() +ggtitle("Serum total cholesterol by current smoking status, Boxplot")
+
+
 frmgham %>% 
   ggplot(., aes(x=as.factor(cursmoke), y=totchol)) +
   geom_violin(aes(fill = as.factor(cursmoke))) +ggtitle("Serum total cholesterol by current smoking status, Violin")
 #https://medlineplus.gov/cholesterollevelswhatyouneedtoknow.html
 #categorized totchol based on link above
+
 frmgham=frmgham %>% 
   mutate(totchol_ctg= ifelse(age<=19 & totchol<170,0,
                              ifelse(age>19&totchol %in% c(125, 200), 0,1)))
 table(frmgham$totchol_ctg)
 # 124 normal total chol 
 # 11503 abnormal total chol
+
+
+a=frmgham %>% 
+  filter(!is.na(totchol)) %>% 
+  filter(period==3)
+range(a$totchol)
 ```
+
+
 ## Finding confounders
+
+
 ```{r}
 library(nlme)
 frmgham= frmgham %>% 
   mutate(bmi=as.numeric(as.character(bmi))) %>% 
   mutate(bmi_cat = ifelse(bmi<18.5,0,ifelse(bmi %in% c(18.5,24.9), 1, ifelse(bmi %in% c(25, 29.9),2, 3))))
+
 a=as.data.frame(lapply(frmgham[,c("cursmoke","age","sex","prevchd")], as.numeric))
 cor(a)
 totchol1 <- 
   gls(totchol ~ as.factor(cursmoke)*period+sex+bmi+age, 
-      data = frmgham,na.action=na.omit, 
-      corr = corCompSymm(,form= ~ 1 | randid) )
+      data = frmgham,na.action=na.omit, corr = corCompSymm(,form= ~ 1 | randid) )
+
 totchol <- 
   gls(totchol ~ as.factor(cursmoke), data = frmgham,na.action=na.omit)
 totchol3=lmer(totchol ~ as.factor(cursmoke)+age+sex+prevchd+(1|randid),
               data=frmgham)
+
 totchol4=lmer(totchol ~ as.factor(cursmoke)*age+sex+prevchd+(as.factor(cursmoke)|randid),
               data=frmgham)
+
 totchol5=lmer(totchol ~ as.factor(cursmoke)+age+sex+prevchd+bmi+(1|randid),
               data=frmgham)
 totchol6=lmer(totchol ~ as.factor(cursmoke)+age+sex+prevchd+bmi+(1|randid),
               data=frmgham)
+
 frmgham=frmgham %>% 
   mutate(period = period-1)
+
 totchol7=lmer(totchol ~ as.factor(cursmoke)*sex+bmi+age+prevchd+(1|randid),
               data=frmgham)
 totchol8=lmer(totchol ~ as.factor(cursmoke)*sex+bmi+age+(1|randid),
@@ -832,18 +1685,25 @@ totchol11=lmer(totchol ~ as.factor(cursmoke)*as.factor(period)+sex+bmi+age+(1|ra
               data=frmgham)
 totchol10=lmer(totchol ~ as.factor(cursmoke)+as.factor(period)+sex+bmi+age+(1|randid),
               data=frmgham)
+
 totchol12=lmer(totchol ~ as.factor(cursmoke)+as.factor(period)+bmi+age+(1|randid),
               data=frmgham)
-#final model
 totchol13=lmer(totchol ~ as.factor(cursmoke)*sex+bmi+age+prevstrk+prevchd+(1|randid),
               data=frmgham)
-summary(totchol13)
+
+#final model
+totchol15=lmer(totchol ~ as.factor(cursmoke)*sex+bmi+age+sysbp+(1|randid),
+              data=frmgham)
+AIC(totchol15)
+
+
 # AIC(totchol10)
 # summary(totchol10)
 # summary(totchol11)
 # anova(totchol13,totchol14)
 # test the significance of random effect
 #sig_ranef=RLRsim::exactRLRT(totchol13, seed=1)
+
 # pot_conf <- names(frmgham)[-c(1,2,4)]
 # pot_conf <- pot_conf[-c(grep("time", pot_conf), grep("death", pot_conf))]
 # 
@@ -878,8 +1738,21 @@ summary(totchol13)
 # 
 # map(conf_det, knitr::kable, digits = 3)
 ```
+
+
+##visualize the relationship between totchol and cursmoke by each confounding variable:
+
 ```{r}
-plot_dt=frmgham %>%
+
+frmgham %>%
+  mutate(cursmoke=as.factor(cursmoke)) %>% 
+  group_by(cursmoke) %>%
+  ggplot(.)+  
+  geom_boxplot(aes(x=cursmoke, y=totchol)) +
+  ggtitle("Totochol by smoking status, boxplot")
+
+
+frmgham %>%
   mutate(cursmoke=as.factor(cursmoke)) %>% 
   group_by(cursmoke, sex) %>%
   summarise(
@@ -889,10 +1762,13 @@ plot_dt=frmgham %>%
   ) %>%
   mutate( se=sd/sqrt(n))  %>%
   mutate( ic=se * qt((1-0.05)/2 + .5, n-1))
+
+
 ggplot(plot_dt)+
-  geom_bar( aes(x=cursmoke, y=mean), stat="identity", fill="forestgreen", alpha=0.5) +
-  geom_errorbar( aes(x=cursmoke, ymin=mean-ic, ymax=mean+ic), width=0.4, colour="orange", alpha=0.9, size=1.5) +
+  geom_bar(aes(x=cursmoke, y=mean), stat="identity", fill="forestgreen", alpha=0.5) +
+  geom_errorbar( aes(x=cursmoke, ymin=mean-ic, ymax=mean+ic), width=0.4, colour="orange", alpha=0.9, size=0.75) +
   ggtitle("Mean totochol by gender")+facet_wrap(~sex)
+
 
 frmgham %>%
   mutate(cursmoke=as.factor(cursmoke)) %>% 
@@ -908,6 +1784,7 @@ frmgham %>%
   geom_bar(aes(x=cursmoke, y=mean), stat="identity", fill="forestgreen", alpha=0.5) +
   geom_errorbar( aes(x=cursmoke, ymin=mean-ic, ymax=mean+ic), width=0.4, colour="orange", alpha=0.9, size=1.5) +
   ggtitle("Mean totochol by prevalence of coronary heart disease ")+facet_wrap(~prevchd)
+
 frmgham %>%
   mutate(cursmoke=as.factor(cursmoke)) %>% 
   group_by(cursmoke, age_ctg) %>%
@@ -922,6 +1799,9 @@ frmgham %>%
   geom_bar(aes(x=cursmoke, y=mean), stat="identity", fill="forestgreen", alpha=0.5) +
   geom_errorbar( aes(x=cursmoke, ymin=mean-ic, ymax=mean+ic), width=0.4, colour="orange", alpha=0.9, size=1.5) +
   ggtitle("Mean totochol by age category")+facet_wrap(~age_ctg)
+
+
+
 frmgham %>%
   mutate(cursmoke=as.factor(cursmoke)) %>% 
   group_by(cursmoke, bmi_cat) %>%
@@ -936,19 +1816,25 @@ frmgham %>%
   geom_bar(aes(x=cursmoke, y=mean), stat="identity", fill="forestgreen", alpha=0.5) +
   geom_errorbar( aes(x=cursmoke, ymin=mean-ic, ymax=mean+ic), width=0.4, colour="orange", alpha=0.9, size=1.5) +
   ggtitle("Mean totochol by BMI category")+facet_wrap(~bmi_cat)
+
 ```
-From the table above, we found age, ldlc and hdlc are confounders. 
+
+
+
 ## bootstrap for confidence interval
-```{r}
-b_par<-bootMer(x=totchol13,FUN=fixef,nsim=200)
-boot::boot.ci(b_par,type="basic",index=2)
-```
 
 
 ```{r}
-lmer <- lmer(diabp ~ cursmoke*sysbp + bmi + prevhyp + (1|randid),  data = frmgham)
-summary(lmer)
+# b_par<-bootMer(x=totchol15,FUN=fixef,nsim=200)
+# a=boot::boot.ci(b_par,type="basic",index=2)
+# a$basic[1,4]+b$basic[1,4]
+# a$basic[1,5]+b$basic[1,5]
+# 
+# b=boot::boot.ci(b_par,type="basic",index=7)
+# b
+# fixef(totchol15)
 ```
+
 
 
 
