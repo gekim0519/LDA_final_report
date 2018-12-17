@@ -271,12 +271,9 @@ for (conf in pot_conf) {
     upper_CI =
       exp(coef(summary(age))[2,1] + 1.96*(coef(summary(age))[2,2])),
     potconf_OR =
-<<<<<<< HEAD
       exp(coef(summary(fit_gee))[2,1]),
-=======
       exp(coef(summary(fit_glmer))[2,1]),
->>>>>>> 2261cd73fb11b5590b29978c2a5f67d3ed3af939
-    confounder =
+  confounder =
       if_else((potconf_OR >= lower_CI & potconf_OR <= upper_CI), FALSE, TRUE)
   )
 
