@@ -10,6 +10,8 @@ library(tidyverse)
 library(janitor)
 library(mice)
 library(gee)
+library(lme4)
+
 
 frmgham = 
   read.csv2("frmgham2.csv", sep = ",", na.strings=c("","NA")) %>% 
@@ -72,6 +74,7 @@ frmgham =
     diabp_ctg = fct_relevel(diabp_ctg, "normal and elevated")) 
 
 ```
+
 (3)The relationship between current smoking status and serum total cholesterol. Again, while answering these questions, please account for any confounders that you have evidence may impact these relationships. 
 
 
@@ -98,6 +101,12 @@ frmgham=frmgham %>%
 table(frmgham$totchol_ctg)
 # 124 normal total chol 
 # 11503 abnormal total chol
+
+
+a=frmgham %>% 
+  filter(!is.na(totchol)) %>% 
+  filter(period==3)
+range(a$totchol)
 ```
 
 
@@ -145,11 +154,31 @@ totchol10=lmer(totchol ~ as.factor(cursmoke)+as.factor(period)+sex+bmi+age+(1|ra
 
 totchol12=lmer(totchol ~ as.factor(cursmoke)+as.factor(period)+bmi+age+(1|randid),
               data=frmgham)
-#final model
 totchol13=lmer(totchol ~ as.factor(cursmoke)*sex+bmi+age+prevstrk+prevchd+(1|randid),
               data=frmgham)
 
-summary(totchol13)
+#final model
+totchol15=lmer(totchol ~ as.factor(cursmoke)*sex+bmi+age+sysbp+(1|randid),
+              data=frmgham)
+AIC(totchol15)
+totchol14=lmer(totchol ~ as.factor(cursmoke)+sex+hdlc+bmi+age+(1|randid),
+              data=frmgham)
+frmgham %>% 
+  mutate(sex = ifelse(sex == 1, "male", "women")) %>%
+  select(randid, cursmoke, sex,totchol) %>% 
+  na.omit() %>% 
+  group_by(cursmoke, sex) %>% 
+  summarise(p_cursmoke = sum(cursmoke)/n(),
+            lower_CI = prop.test(sum(cursmoke), n())$conf.int[1],
+            upper_CI = prop.test(sum(cursmoke), n())$conf.int[2]) %>%
+  ggplot(aes(x = age_ctg, y = p_cursmoke, color = sex, group = sex)) +
+  geom_errorbar(aes(ymin = lower_CI, ymax = upper_CI), width = .1) +
+  geom_line() +
+  labs(title = "Relationship between categorized age and smoking status by sex",
+       x = "Age",
+       y = "Probability of current smoking")
+
+
 # AIC(totchol10)
 # summary(totchol10)
 # summary(totchol11)
@@ -197,8 +226,15 @@ summary(totchol13)
 
 ```{r}
 
+frmgham %>%
+  mutate(cursmoke=as.factor(cursmoke)) %>% 
+  group_by(cursmoke) %>%
+  ggplot(.)+  
+  geom_boxplot(aes(x=cursmoke, y=totchol)) +
+  ggtitle("Totochol by smoking status, boxplot")
 
-plot_dt=frmgham %>%
+
+frmgham %>%
   mutate(cursmoke=as.factor(cursmoke)) %>% 
   group_by(cursmoke, sex) %>%
   summarise(
@@ -211,8 +247,8 @@ plot_dt=frmgham %>%
 
 
 ggplot(plot_dt)+
-  geom_bar( aes(x=cursmoke, y=mean), stat="identity", fill="forestgreen", alpha=0.5) +
-  geom_errorbar( aes(x=cursmoke, ymin=mean-ic, ymax=mean+ic), width=0.4, colour="orange", alpha=0.9, size=1.5) +
+  geom_bar(aes(x=cursmoke, y=mean), stat="identity", fill="forestgreen", alpha=0.5) +
+  geom_errorbar( aes(x=cursmoke, ymin=mean-ic, ymax=mean+ic), width=0.4, colour="orange", alpha=0.9, size=0.75) +
   ggtitle("Mean totochol by gender")+facet_wrap(~sex)
 
 
@@ -262,6 +298,7 @@ frmgham %>%
   geom_bar(aes(x=cursmoke, y=mean), stat="identity", fill="forestgreen", alpha=0.5) +
   geom_errorbar( aes(x=cursmoke, ymin=mean-ic, ymax=mean+ic), width=0.4, colour="orange", alpha=0.9, size=1.5) +
   ggtitle("Mean totochol by BMI category")+facet_wrap(~bmi_cat)
+
 ```
 
 
@@ -270,10 +307,14 @@ frmgham %>%
 
 
 ```{r}
-b_par<-bootMer(x=totchol13,FUN=fixef,nsim=200)
-boot::boot.ci(b_par,type="basic",index=2)
+b_par<-bootMer(x=totchol15,FUN=fixef,nsim=200)
+a=boot::boot.ci(b_par,type="basic",index=2)
+a$basic[1,4]+b$basic[1,4]
+a$basic[1,5]+b$basic[1,5]
+
+b=boot::boot.ci(b_par,type="basic",index=7)
+b
+fixef(totchol15)
 ```
-
-
 
 
